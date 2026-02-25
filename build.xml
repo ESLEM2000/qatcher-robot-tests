@@ -1,0 +1,48 @@
+<project name="ReleasePackage-ITA0148-WLFA" default="all" basedir=".">
+
+    <!-- Préparation des répertoires -->
+    <target name="init">
+        <mkdir dir="dist"/>
+    </target>
+
+    <!-- Assemblage DevProxy -->
+    <target name="assemble-devproxy" depends="init">
+        <copy todir="dist/devproxy">
+            <fileset dir="src/devproxy"/>
+        </copy>
+    </target>
+
+    <!-- Assemblage IFSF -->
+    <target name="assemble-ifsf" depends="init">
+        <copy todir="dist/ifsf">
+            <fileset dir="src/ifsf"/>
+        </copy>
+    </target>
+
+    <!-- Packaging DevProxy -->
+    <target name="package-devproxy" depends="assemble-devproxy">
+        <exec executable="7z">
+            <arg value="a"/>
+            <arg value="dist/DevProxy.7z"/>
+            <arg value="dist/devproxy/*"/>
+        </exec>
+    </target>
+
+    <!-- Packaging IFSF -->
+    <target name="package-ifsf" depends="assemble-ifsf">
+        <exec executable="7z">
+            <arg value="a"/>
+            <arg value="dist/IFSF.7z"/>
+            <arg value="dist/ifsf/*"/>
+        </exec>
+    </target>
+
+    <!-- Cible globale -->
+    <target name="all" depends="package-devproxy,package-ifsf"/>
+
+    <!-- Nettoyage -->
+    <target name="clean">
+        <delete dir="dist"/>
+    </target>
+
+</project>

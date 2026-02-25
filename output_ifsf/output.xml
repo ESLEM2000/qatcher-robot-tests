@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 6.1.1 (Python 3.10.5 on win32)" generated="20260225 09:16:36.343" rpa="false" schemaversion="4">
+<suite id="s1" name="Install IFSF From Jenkins" source="C:\Users\eslem.hajamor\Desktop\haj amor eslem\QAtcher_v3 (2)\QAtcher_v3\2.28.0\Test_Infrastructure\Test Infrastructure delivery-2.3.0-1\resources\sample\tests\Install_IFSF_From_Jenkins.robot">
+<test id="s1-t1" name="Install IFSF From Jenkins" line="18">
+<kw name="Run Keyword If" library="BuiltIn">
+<arg>'''${IFSF_BUILD_DIR}''' == ''</arg>
+<arg>Télécharger IFSF depuis Jenkins puis définir répertoire</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<kw name="Télécharger IFSF depuis Jenkins puis définir répertoire">
+<kw name="Run Process" library="Process">
+<var>${result}</var>
+<arg>powershell.exe</arg>
+<arg>-NoProfile</arg>
+<arg>-ExecutionPolicy</arg>
+<arg>Bypass</arg>
+<arg>-File</arg>
+<arg>C:\\Users\\eslem.hajamor\\Desktop\\haj amor eslem\\QAtcher_v3 (2)\\QAtcher_v3\\2.28.0\\Test_Infrastructure\\Test Infrastructure delivery-2.3.0-1\\resources\\sample\\tests${/}download_ifsf_from_jenkins.ps1</arg>
+<arg>-QAtcherTerminalID</arg>
+<arg>${QAtcherTerminalID}</arg>
+<arg>cwd=C:\\Users\\eslem.hajamor\\Desktop\\haj amor eslem\\QAtcher_v3 (2)\\QAtcher_v3\\2.28.0\\Test_Infrastructure\\Test Infrastructure delivery-2.3.0-1\\resources\\sample\\tests</arg>
+<doc>Runs a process and waits for it to complete.</doc>
+<msg timestamp="20260225 09:16:38.192" level="INFO">Starting process:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\eslem.hajamor\Desktop\haj amor eslem\QAtcher_v3 (2)\QAtcher_v3\2.28.0\Test_Infrastructure\Test Infrastructure delivery-2.3.0-1\resources\sample\tests\download_ifsf_from_jenkins.ps1" -QAtcherTerminalID Move3500_54227826</msg>
+<msg timestamp="20260225 09:16:38.222" level="INFO">Waiting for process to complete.</msg>
+<msg timestamp="20260225 09:16:38.696" level="INFO">Process completed.</msg>
+<msg timestamp="20260225 09:16:38.696" level="INFO">${result} = &lt;result object with rc 1&gt;</msg>
+<status status="PASS" starttime="20260225 09:16:38.192" endtime="20260225 09:16:38.696"/>
+</kw>
+<kw name="Should Be Equal As Integers" library="BuiltIn">
+<arg>${result.rc}</arg>
+<arg>0</arg>
+<arg>msg=Échec du téléchargement IFSF: ${result.stderr}</arg>
+<doc>Fails if objects are unequal after converting them to integers.</doc>
+<msg timestamp="20260225 09:16:38.698" level="INFO">Argument types are:
+&lt;class 'int'&gt;
+&lt;class 'str'&gt;</msg>
+<msg timestamp="20260225 09:16:38.698" level="FAIL">Échec du téléchargement IFSF: C:\Users\eslem.hajamor\Desktop\haj amor eslem\QAtcher_v3 (2)\QAtcher_v3\2.28.0\Test_Infrastructure\Test Infrastructure 
+delivery-2.3.0-1\resources\sample\tests\download_ifsf_from_jenkins.ps1 : IFSF_JENKINS_URL doit Ãªtre dÃ©fini (variable 
+d'environnement ou dans ifsf_config.ps1).
+    + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
+    + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,download_ifsf_from_jenkins.ps1
+ : 1 != 0</msg>
+<status status="FAIL" starttime="20260225 09:16:38.696" endtime="20260225 09:16:38.698"/>
+</kw>
+<kw name="Get Lines">
+<var>${lines}</var>
+<arg>${result.stdout}</arg>
+<status status="NOT RUN" starttime="20260225 09:16:38.702" endtime="20260225 09:16:38.702"/>
+</kw>
+<kw name="Get Length" library="BuiltIn">
+<var>${count}</var>
+<arg>${lines}</arg>
+<doc>Returns and logs the length of the given item as an integer.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.702" endtime="20260225 09:16:38.702"/>
+</kw>
+<kw name="Should Be True" library="BuiltIn">
+<arg>${count} &gt; 0</arg>
+<arg>msg=Aucune sortie du script de téléchargement</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.702" endtime="20260225 09:16:38.702"/>
+</kw>
+<kw name="Evaluate" library="BuiltIn">
+<var>${last_index}</var>
+<arg>int($count) - 1</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.702" endtime="20260225 09:16:38.702"/>
+</kw>
+<kw name="Get From List" library="Collections">
+<var>${last}</var>
+<arg>${lines}</arg>
+<arg>${last_index}</arg>
+<doc>Returns the value specified with an ``index`` from ``list``.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.702" endtime="20260225 09:16:38.702"/>
+</kw>
+<kw name="Strip String" library="String">
+<var>${build_dir}</var>
+<arg>${last}</arg>
+<doc>Remove leading and/or trailing whitespaces from the given string.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.702" endtime="20260225 09:16:38.702"/>
+</kw>
+<kw name="Set Suite Variable" library="BuiltIn">
+<arg>${IFSF_BUILD_DIR}</arg>
+<arg>${build_dir}</arg>
+<doc>Makes a variable available everywhere within the scope of the current suite.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.702" endtime="20260225 09:16:38.702"/>
+</kw>
+<kw name="Log" library="BuiltIn">
+<arg>IFSF_BUILD_DIR=${build_dir}</arg>
+<arg>level=INFO</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.702" endtime="20260225 09:16:38.702"/>
+</kw>
+<status status="FAIL" starttime="20260225 09:16:38.190" endtime="20260225 09:16:38.702"/>
+</kw>
+<status status="FAIL" starttime="20260225 09:16:38.190" endtime="20260225 09:16:38.703"/>
+</kw>
+<kw name="Should Not Be Empty" library="BuiltIn">
+<arg>${IFSF_BUILD_DIR}</arg>
+<arg>msg=Définir IFSF_BUILD_DIR (ou IFSF_JENKINS_URL dans l'environnement pour téléchargement auto)</arg>
+<doc>Verifies that the given item is not empty.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.703" endtime="20260225 09:16:38.703"/>
+</kw>
+<kw name="Set Variable" library="BuiltIn">
+<var>${build_dir}</var>
+<arg>${IFSF_BUILD_DIR}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.703" endtime="20260225 09:16:38.703"/>
+</kw>
+<kw name="Get File" library="OperatingSystem">
+<var>${pkg_content}</var>
+<arg>${build_dir}${/}package.txt</arg>
+<doc>Returns the contents of a specified file.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.703" endtime="20260225 09:16:38.703"/>
+</kw>
+<kw name="Get Lines">
+<var>${pkg_lines}</var>
+<arg>${pkg_content}</arg>
+<status status="NOT RUN" starttime="20260225 09:16:38.707" endtime="20260225 09:16:38.707"/>
+</kw>
+<kw name="Get File" library="OperatingSystem">
+<var>${import_content}</var>
+<arg>${build_dir}${/}import.txt</arg>
+<doc>Returns the contents of a specified file.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.707" endtime="20260225 09:16:38.707"/>
+</kw>
+<kw name="Get Lines">
+<var>${import_lines}</var>
+<arg>${import_content}</arg>
+<status status="NOT RUN" starttime="20260225 09:16:38.709" endtime="20260225 09:16:38.711"/>
+</kw>
+<kw name="Connect Device" library="QAtcherLibrary">
+<arg>${QAtcherTerminalID}</arg>
+<tag>MAIN API</tag>
+<tag>RAW</tag>
+<doc>Return OK or an error message</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<for flavor="IN RANGE">
+<var>${i}</var>
+<value>3</value>
+<iter>
+<var name="${i}"/>
+<kw name="Run Keyword And Return Status" library="BuiltIn">
+<var>${status}</var>
+<arg>Local Upgrade Disconnect</arg>
+<arg>${QAtcherTerminalID}</arg>
+<doc>Runs the given keyword with given arguments and returns the status as a Boolean value.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<kw name="Run Keyword If" library="BuiltIn">
+<arg>${status}</arg>
+<arg>Log</arg>
+<arg>Session LLT fermée (tentative ${i+1})</arg>
+<arg>level=INFO</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<kw name="Sleep" library="BuiltIn">
+<arg>2s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</iter>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</for>
+<kw name="Sleep" library="BuiltIn">
+<arg>3s</arg>
+<doc>Pauses the test executed for the given time.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<kw name="Local Upgrade Connect" library="QAtcherLibrary">
+<arg>${QAtcherTerminalID}</arg>
+<tag>LOCAL UPGRADE</tag>
+<tag>RAW</tag>
+<doc>Start connection to perform a local upgrade. This uses the NTPT3 Protocol and has the same behavior as connecting with LLT. Please note that this API only works on Tetra terminals connected in USB/PPP or TCP.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<for flavor="IN">
+<var>${f}</var>
+<value>@{pkg_lines}</value>
+<iter>
+<var name="${f}"/>
+<kw name="Continue For Loop If" library="BuiltIn">
+<arg>'''${f}''' == ''</arg>
+<doc>Skips the current FOR loop iteration if the ``condition`` is true.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<kw name="Set Variable" library="BuiltIn">
+<var>${path}</var>
+<arg>${build_dir}${/}${f}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<kw name="Local Upgrade Download" library="QAtcherLibrary">
+<arg>${QAtcherTerminalID}</arg>
+<arg>${path}</arg>
+<arg>/package</arg>
+<tag>LOCAL UPGRADE</tag>
+<tag>RAW</tag>
+<doc>Download a file to the terminal. This uses the NTPT3 Protocol and has the same behavior as downloading a file with LLT. Please note that this API only works on Tetra terminals connected in USB/PPP or TCP. After downloading a file a reboot will occur after disconnection, except when downloading a web application to the following destination folder: /import/9993047031.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</iter>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</for>
+<for flavor="IN">
+<var>${f}</var>
+<value>@{import_lines}</value>
+<iter>
+<var name="${f}"/>
+<kw name="Continue For Loop If" library="BuiltIn">
+<arg>'''${f}''' == ''</arg>
+<doc>Skips the current FOR loop iteration if the ``condition`` is true.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<kw name="Set Variable" library="BuiltIn">
+<var>${path}</var>
+<arg>${build_dir}${/}${f}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<kw name="Local Upgrade Download" library="QAtcherLibrary">
+<arg>${QAtcherTerminalID}</arg>
+<arg>${path}</arg>
+<arg>/import</arg>
+<tag>LOCAL UPGRADE</tag>
+<tag>RAW</tag>
+<doc>Download a file to the terminal. This uses the NTPT3 Protocol and has the same behavior as downloading a file with LLT. Please note that this API only works on Tetra terminals connected in USB/PPP or TCP. After downloading a file a reboot will occur after disconnection, except when downloading a web application to the following destination folder: /import/9993047031.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</kw>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</iter>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.711"/>
+</for>
+<kw name="Local Upgrade Disconnect" library="QAtcherLibrary">
+<arg>${QAtcherTerminalID}</arg>
+<tag>LOCAL UPGRADE</tag>
+<tag>RAW</tag>
+<doc>Stop connection of a local upgrade. This uses the NTPT3 Protocol and has the same behavior as disconnecting with LLT. Please note that this API only works on Tetra terminals connected in USB/PPP or TCP. This API will reboot the terminal if: 
+- A package has been deleted during the Local Upgrade session
+- A file has been downloaded to the terminal during the Local Upgrade session (except when it's a web application)</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.711" endtime="20260225 09:16:38.713"/>
+</kw>
+<kw name="Wait For Terminal" library="QAtcherLibrary">
+<arg>${QAtcherTerminalID}</arg>
+<arg>timeout=120</arg>
+<arg>available=True</arg>
+<tag>HIGH-LEVEL</tag>
+<tag>WAIT</tag>
+<doc> Wait for the terminal to be available again.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.713" endtime="20260225 09:16:38.713"/>
+</kw>
+<kw name="Disconnect Device" library="QAtcherLibrary">
+<arg>${QAtcherTerminalID}</arg>
+<tag>MAIN API</tag>
+<tag>RAW</tag>
+<doc>Return OK or an error message</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.713" endtime="20260225 09:16:38.713"/>
+</kw>
+<kw name="Log" library="BuiltIn">
+<arg>IFSF installé sur ${QAtcherTerminalID}.</arg>
+<arg>level=INFO</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="NOT RUN" starttime="20260225 09:16:38.713" endtime="20260225 09:16:38.713"/>
+</kw>
+<doc>Télécharge le dernier build IFSF depuis Jenkins (si IFSF_JENKINS_URL défini),
+prépare les fichiers selon le type de terminal (TETRA/T2/SELF),
+puis installe via Local Upgrade (/package et /import).
+Terminal type: IFSF_TERMINAL_TYPE ou déduit de QAtcherTerminalID.</doc>
+<status status="FAIL" starttime="20260225 09:16:38.188" endtime="20260225 09:16:38.713">Échec du téléchargement IFSF: C:\Users\eslem.hajamor\Desktop\haj amor eslem\QAtcher_v3 (2)\QAtcher_v3\2.28.0\Test_Infrastructure\Test Infrastructure 
+delivery-2.3.0-1\resources\sample\tests\download_ifsf_from_jenkins.ps1 : IFSF_JENKINS_URL doit Ãªtre dÃ©fini (variable 
+d'environnement ou dans ifsf_config.ps1).
+    + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
+    + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,download_ifsf_from_jenkins.ps1
+ : 1 != 0</status>
+</test>
+<status status="FAIL" starttime="20260225 09:16:36.359" endtime="20260225 09:16:38.713"/>
+</suite>
+<statistics>
+<total>
+<stat pass="0" fail="1" skip="0">All Tests</stat>
+</total>
+<tag>
+</tag>
+<suite>
+<stat pass="0" fail="1" skip="0" id="s1" name="Install IFSF From Jenkins">Install IFSF From Jenkins</stat>
+</suite>
+</statistics>
+<errors>
+</errors>
+</robot>

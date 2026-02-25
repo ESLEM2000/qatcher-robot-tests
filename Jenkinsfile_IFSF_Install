@@ -1,0 +1,283 @@
+// Pipeline Jenkins : Installation IFSF depuis Jenkins (Local Upgrade)
+//
+// Deux modes : 1) "Pipeline script from SCM" -> laisser GIT_REPO_URL vide (checkout scm).
+//             2) "Pipeline script" (sans SCM) -> renseigner GIT_REPO_URL au build (checkout explicite).
+//
+// 1. Télécharge le dernier build réussi (DevProxy, IFSF, XMLConfigDLL .7z) depuis un job Jenkins (IFSF_JENKINS_URL).
+// 2. Extrait, sélectionne les fichiers selon le type de terminal (TETRA/T2/SELF), prépare le répertoire (APPL_IFSF.MXX).
+// 3. Installe sur le terminal via Local Upgrade (/package et /import).
+//
+// Prérequis :
+// - Si IFSF_USE_COPY_ARTIFACTS coché (défaut) : plugin "Pipeline: Copy Artifact". Pas de credential ni d'URL nécessaires (évite "connexion interrompue" sur le même Jenkins).
+// - Si décoché : credential Jenkins (Username/password) pour IFSF_JENKINS_URL. 7-Zip sur l'agent.
+// - Robot Framework + QAtcherLibrary. QAtcher accessible (QAtcherHost:QAtcherPort).
+//
+// Build Parameters (Build with Parameters) :
+// | Paramètre             | Défaut                    | Description |
+// |-----------------------|---------------------------|-------------|
+// | IFSF_JENKINS_URL      | (vide)                    | URL du job qui CONSTRUIT IFSF et publie les 3 .7z. PAS le job IFSF-install. Ex: .../job/IFSF-Build/ (si pas Copy Artifacts). |
+// | QAtcherTerminalID     | Move3500_54227826          | ID du terminal QAtcher. Type déduit si IFSF_TERMINAL_TYPE vide. |
+// | IFSF_TERMINAL_TYPE    | (vide)                    | TETRA | T2 | SELF. Vide = déduit de QAtcherTerminalID. |
+// | QAtcherHost           | localhost                  | Hôte du serveur QAtcher. |
+// | QAtcherPort           | 8080                      | Port QAtcher. |
+// | IFSF_CREDENTIALS_ID   | jenkins-ifsf-credentials  | ID de la credential Jenkins (Username/Password) pour télécharger les .7z. |
+// | GIT_REPO_URL              | (vide)                    | Sans SCM : URL du dépôt. Avec SCM : laisser vide. |
+// | GIT_BRANCH                | main                      | Sans SCM : branche à cloner. |
+// | IFSF_USE_COPY_ARTIFACTS   | true                      | Si coché : Copy Artifacts (même Jenkins, pas d'HTTP). Recommandé. |
+// | IFSF_JENKINS_JOB_NAME     | IFSF-Build                | Nom du job qui publie les .7z (utilisé si Copy Artifacts). |
+
+pipeline {
+    agent any
+
+    parameters {
+        string(
+            name: 'IFSF_JENKINS_URL',
+            defaultValue: '',
+            description: 'URL du job Jenkins qui CONSTRUIT IFSF et publie les 3 .7z (DevProxy, IFSF, XMLConfigDLL). PAS le job IFSF-install (installation / Local Upgrade). Ex: http://127.0.0.1:8081/job/IFSF-Build/  Utilise si IFSF_USE_COPY_ARTIFACTS est décoché. find_ifsf_jenkins_job.ps1 pour trouver le bon job.'
+        )
+        string(
+            name: 'QAtcherTerminalID',
+            defaultValue: 'Move3500_54227826',
+            description: 'ID du terminal QAtcher (ex: Move3500_54227826). Type terminal déduit si IFSF_TERMINAL_TYPE vide.'
+        )
+        choice(
+            name: 'IFSF_TERMINAL_TYPE',
+            choices: ['', 'TETRA', 'T2', 'SELF'],
+            description: 'Type de terminal (vide = déduit de QAtcherTerminalID)'
+        )
+        string(
+            name: 'QAtcherHost',
+            defaultValue: 'localhost',
+            description: 'Hôte du serveur QAtcher'
+        )
+        string(
+            name: 'QAtcherPort',
+            defaultValue: '8080',
+            description: 'Port QAtcher'
+        )
+        string(
+            name: 'IFSF_CREDENTIALS_ID',
+            defaultValue: 'jenkins-ifsf-credentials',
+            description: 'ID de la credential Jenkins (Username/Password) pour télécharger les .7z'
+        )
+        string(
+            name: 'GIT_REPO_URL',
+            defaultValue: 'file:///C:/Users/eslem.hajamor/Desktop/haj%20amor%20eslem',
+            description: 'Sans SCM (script collé) : URL du dépôt Git. Avec SCM : vider ce champ pour utiliser checkout scm.'
+        )
+        string(
+            name: 'GIT_BRANCH',
+            defaultValue: 'main',
+            description: 'Sans SCM : branche à cloner (main ou master).'
+        )
+        booleanParam(
+            name: 'IFSF_USE_COPY_ARTIFACTS',
+            defaultValue: true,
+            description: 'Si coché : utiliser le plugin Copy Artifacts (pas d\'appel HTTP vers Jenkins). Recommandé quand le job tourne sur le même Jenkins (évite "connexion interrompue").'
+        )
+        string(
+            name: 'IFSF_JENKINS_JOB_NAME',
+            defaultValue: 'IFSF-Build',
+            description: 'Nom EXACT du job (sensible a la casse) qui construit IFSF et publie les 3 .7z sur CE Jenkins. Utilise si IFSF_USE_COPY_ARTIFACTS est coche. Le job doit exister et avoir au moins un build reussi.'
+        )
+    }
+
+    environment {
+        QAtcherHost       = "${params.QAtcherHost}"
+        QAtcherPort       = "${params.QAtcherPort}"
+        QAtcherTerminalID = "${params.QAtcherTerminalID}"
+        IFSF_JENKINS_URL  = "${params.IFSF_JENKINS_URL}"
+        IFSF_TERMINAL_TYPE = "${params.IFSF_TERMINAL_TYPE}"
+    }
+
+    options {
+        timeout(time: 45, unit: 'MINUTES')
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '15'))
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    def url = params.GIT_REPO_URL?.trim()
+                    if (url?.toLowerCase().startsWith('file://')) {
+                        echo 'Copie du dossier local vers le workspace (sans SCM, file://)...'
+                        def raw = url.replaceFirst('(?i)file:///', '')
+                        def path = java.net.URLDecoder.decode(raw, 'UTF-8')
+                        if (isUnix()) {
+                            sh "cp -r '${path}/.' '${env.WORKSPACE}/'"
+                        } else {
+                            bat "robocopy \"${path}\" \"%WORKSPACE%\" /E /NFL /NDL /NJH /NJS & exit /b 0"
+                        }
+                    } else if (url) {
+                        echo 'Checkout du dépôt (Git distant)...'
+                        def branch = params.GIT_BRANCH?.trim() ?: 'main'
+                        checkout([$class: 'GitSCM', branches: [[name: '*/' + branch]], userRemoteConfigs: [[url: url]]])
+                    } else {
+                        echo 'Checkout du dépôt (Pipeline script from SCM)...'
+                        checkout scm
+                    }
+                }
+            }
+        }
+
+        stage('Téléchargement IFSF (Jenkins)') {
+            when { expression { return params.IFSF_USE_COPY_ARTIFACTS || params.IFSF_JENKINS_URL?.trim() } }
+            steps {
+                script {
+                    def testsDir = "QAtcher_v3 (2)/QAtcher_v3/2.28.0/Test_Infrastructure/Test Infrastructure delivery-2.3.0-1/resources/sample/tests"
+                    def termType = params.IFSF_TERMINAL_TYPE?.trim() ?: ''
+                    def jobName = params.IFSF_JENKINS_JOB_NAME?.trim() ?: 'IFSF-Build'
+
+                    if (params.IFSF_USE_COPY_ARTIFACTS) {
+                        // Copy Artifacts (pas d'appel HTTP) — évite "connexion interrompue" sur le même Jenkins
+                        copyArtifacts projectName: jobName, selector: lastSuccessful(), target: 'IFSF_Artifacts', filter: '**/*.7z'
+                        if (isUnix()) {
+                            sh """
+                                export QAtcherTerminalID="${params.QAtcherTerminalID}"
+                                ${termType ? "export IFSF_TERMINAL_TYPE=\"${termType}\"; " : ''}
+                                cd "${testsDir}" && pwsh -NoProfile -File ./prepare_ifsf_from_copy.ps1 -ArtifactsDir "${env.WORKSPACE}/IFSF_Artifacts" -QAtcherTerminalID "${params.QAtcherTerminalID}" ${termType ? "-TerminalType ${termType}" : ''}
+                                test -f "${testsDir}/IFSF_Build/package.txt" || { echo "[ERREUR] IFSF_Build/package.txt non cree."; exit 1; }
+                                echo "[OK] IFSF_Build pret (Copy Artifacts)."
+                            """
+                        } else {
+                            bat """
+                                set QAtcherTerminalID=${params.QAtcherTerminalID}
+                                ${termType ? "set IFSF_TERMINAL_TYPE=${termType}" : ''}
+                                cd /d "%WORKSPACE%\\QAtcher_v3 (2)\\QAtcher_v3\\2.28.0\\Test_Infrastructure\\Test Infrastructure delivery-2.3.0-1\\resources\\sample\\tests"
+                                powershell -NoProfile -ExecutionPolicy Bypass -File .\\prepare_ifsf_from_copy.ps1 -ArtifactsDir "%WORKSPACE%\\IFSF_Artifacts" -QAtcherTerminalID %QAtcherTerminalID% ${termType ? "-TerminalType " + termType : ''}
+                                if errorlevel 1 (
+                                    echo [ERREUR] prepare_ifsf_from_copy.ps1 a echoue. Verifier que le job \"${jobName}\" publie DevProxy, IFSF, XMLConfigDLL en .7z.
+                                    exit /b 1
+                                )
+                                set "IFSF_BD=%WORKSPACE%\\QAtcher_v3 (2)\\QAtcher_v3\\2.28.0\\Test_Infrastructure\\Test Infrastructure delivery-2.3.0-1\\resources\\sample\\tests\\IFSF_Build"
+                                if not exist "%IFSF_BD%\\package.txt" (
+                                    echo [ERREUR] IFSF_Build/package.txt non cree.
+                                    exit /b 1
+                                )
+                                echo [OK] IFSF_Build pret (Copy Artifacts).
+                            """
+                        }
+                    } else {
+                        try {
+                            withCredentials([usernamePassword(
+                                credentialsId: "${params.IFSF_CREDENTIALS_ID}",
+                                usernameVariable: 'JENKINS_USER',
+                                passwordVariable: 'JENKINS_PASSWORD'
+                            )]) {
+                                if (isUnix()) {
+                                    sh """
+                                        export IFSF_JENKINS_URL="${params.IFSF_JENKINS_URL}"
+                                        export JENKINS_USER="\${JENKINS_USER}"
+                                        export JENKINS_PASSWORD="\${JENKINS_PASSWORD}"
+                                        export QAtcherTerminalID="${params.QAtcherTerminalID}"
+                                        ${termType ? "export IFSF_TERMINAL_TYPE=\"${termType}\"; " : ''}
+                                        cd "${testsDir}" && pwsh -NoProfile -File ./download_ifsf_from_jenkins.ps1 -QAtcherTerminalID "${params.QAtcherTerminalID}" ${termType ? "-TerminalType ${termType}" : ''}
+                                        test -f "${testsDir}/IFSF_Build/package.txt" || { echo "[ERREUR] IFSF_Build/package.txt non cree."; exit 1; }
+                                        test -f "${testsDir}/IFSF_Build/import.txt" || { echo "[ERREUR] IFSF_Build/import.txt non cree."; exit 1; }
+                                        echo "[OK] IFSF_Build pret."
+                                    """
+                                } else {
+                                    bat """
+                                        set IFSF_JENKINS_URL=${params.IFSF_JENKINS_URL}
+                                        set JENKINS_USER=%JENKINS_USER%
+                                        set JENKINS_PASSWORD=%JENKINS_PASSWORD%
+                                        set QAtcherTerminalID=${params.QAtcherTerminalID}
+                                        ${termType ? "set IFSF_TERMINAL_TYPE=${termType}" : ''}
+                                        cd /d "%WORKSPACE%\\QAtcher_v3 (2)\\QAtcher_v3\\2.28.0\\Test_Infrastructure\\Test Infrastructure delivery-2.3.0-1\\resources\\sample\\tests"
+                                        powershell -NoProfile -ExecutionPolicy Bypass -File .\\download_ifsf_from_jenkins.ps1 -QAtcherTerminalID %QAtcherTerminalID% ${termType ? "-TerminalType " + termType : ''}
+                                        if errorlevel 1 (
+                                            echo [ERREUR] Le script download_ifsf_from_jenkins.ps1 a echoue. Verifier URL, credentials, 7-Zip, et artefacts .7z du job Jenkins.
+                                            exit /b 1
+                                        )
+                                        set "IFSF_BD=%WORKSPACE%\\QAtcher_v3 (2)\\QAtcher_v3\\2.28.0\\Test_Infrastructure\\Test Infrastructure delivery-2.3.0-1\\resources\\sample\\tests\\IFSF_Build"
+                                        if not exist "%IFSF_BD%\\package.txt" (
+                                            echo [ERREUR] IFSF_Build/package.txt non cree. Le job Jenkins doit publier DevProxy, IFSF et XMLConfigDLL en .7z.
+                                            exit /b 1
+                                        )
+                                        if not exist "%IFSF_BD%\\import.txt" (
+                                            echo [ERREUR] IFSF_Build/import.txt non cree.
+                                            exit /b 1
+                                        )
+                                        echo [OK] IFSF_Build pret : package.txt et import.txt presents.
+                                    """
+                                }
+                            }
+                        } catch (Exception e) {
+                            if (e.toString().contains('Could not find credentials')) {
+                                echo "Credential introuvable. Creer dans Jenkins : Manage Jenkins > Credentials > Add Credentials > Username with password, ID = ${params.IFSF_CREDENTIALS_ID}"
+                                currentBuild.result = 'UNSTABLE'
+                                currentBuild.description = "Credential ${params.IFSF_CREDENTIALS_ID} manquante"
+                            } else {
+                                throw e
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Installation IFSF (Local Upgrade)') {
+            steps {
+                script {
+                    def testsDir = "QAtcher_v3 (2)/QAtcher_v3/2.28.0/Test_Infrastructure/Test Infrastructure delivery-2.3.0-1/resources/sample/tests"
+                    // Répertoire de sortie du téléchargement (IFSF_Build dans le dossier tests)
+                    def buildDirRel = "QAtcher_v3 (2)/QAtcher_v3/2.28.0/Test_Infrastructure/Test Infrastructure delivery-2.3.0-1/resources/sample/tests/IFSF_Build"
+                    if (isUnix()) {
+                        sh """
+                            cd "${testsDir}"
+                            robot --variable "QAtcherHost:${params.QAtcherHost}" \
+                                  --variable "QAtcherPort:${params.QAtcherPort}" \
+                                  --variable "QAtcherTerminalID:${params.QAtcherTerminalID}" \
+                                  --variable "IFSF_BUILD_DIR:${WORKSPACE}/${buildDirRel}" \
+                                  --test "Install IFSF From Jenkins" \
+                                  --outputdir output_ifsf \
+                                  Install_IFSF_From_Jenkins.robot
+                        """
+                    } else {
+                        def ifsfBuildDir = env.WORKSPACE.replace('\\', '/') + '/QAtcher_v3 (2)/QAtcher_v3/2.28.0/Test_Infrastructure/Test Infrastructure delivery-2.3.0-1/resources/sample/tests/IFSF_Build'
+                        def packageTxtPath = env.WORKSPACE.replace('\\', '/') + '/QAtcher_v3 (2)/QAtcher_v3/2.28.0/Test_Infrastructure/Test Infrastructure delivery-2.3.0-1/resources/sample/tests/IFSF_Build/package.txt'
+                        def checkResult = bat(script: "powershell -NoProfile -Command \"exit [int](-not (Test-Path -LiteralPath \\\"${packageTxtPath}\\\"))\"", returnStatus: true)
+                        if (checkResult != 0) {
+                            echo "IFSF_Build/package.txt manquant. Renseigner IFSF_JENKINS_URL et IFSF_CREDENTIALS_ID au Build with Parameters pour lancer l'etape Telechargement IFSF, puis relancer le build."
+                            currentBuild.result = 'UNSTABLE'
+                            currentBuild.description = 'IFSF_JENKINS_URL non renseigne ou telechargement non execute'
+                            return
+                        }
+                        bat """
+                            cd /d "%WORKSPACE%\\QAtcher_v3 (2)\\QAtcher_v3\\2.28.0\\Test_Infrastructure\\Test Infrastructure delivery-2.3.0-1\\resources\\sample\\tests"
+                            robot --variable "QAtcherHost:${params.QAtcherHost}" --variable "QAtcherPort:${params.QAtcherPort}" --variable "QAtcherTerminalID:${params.QAtcherTerminalID}" --variable "IFSF_BUILD_DIR:${ifsfBuildDir}" --test "Install IFSF From Jenkins" --outputdir output_ifsf Install_IFSF_From_Jenkins.robot
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Rapports') {
+            steps {
+                script {
+                    def reportDir = "QAtcher_v3 (2)/QAtcher_v3/2.28.0/Test_Infrastructure/Test Infrastructure delivery-2.3.0-1/resources/sample/tests/output_ifsf"
+                    publishHTML([
+                        reportDir: reportDir,
+                        reportFiles: 'report.html',
+                        reportName: 'Rapport IFSF Install',
+                        keepAll: true
+                    ])
+                    junit "${reportDir}/*.xml"
+                }
+            }
+        }
+    }
+    post {
+        failure {
+            echo "=== Echec pipeline IFSF ==="
+            echo "Verifier : 1) IFSF_JENKINS_URL  2) IFSF_CREDENTIALS_ID / credential Jenkins  3) 7-Zip sur l'agent  4) QAtcher demarre (QAtcherHost:QAtcherPort)  5) Terminal connecte (QAtcherTerminalID)."
+            echo "Si 'Unable to find project for artifact copy' : IFSF_JENKINS_JOB_NAME doit etre le nom EXACT du job (sensible a la casse) qui publie les 3 .7z sur CE Jenkins. Le job doit exister et avoir au moins un build reussi. Voir la liste des jobs sur la page d'accueil Jenkins."
+            echo "Si 'connexion interrompue' : le script retente 3 fois (timeout 120s). Optionnel : IFSF_JENKINS_TIMEOUT_SEC, IFSF_JENKINS_MAX_RETRIES. Essayer IFSF_JENKINS_URL avec localhost au lieu de 127.0.0.1."
+        }
+        success {
+            echo "IFSF installe sur le terminal via Local Upgrade."
+        }
+    }
+}

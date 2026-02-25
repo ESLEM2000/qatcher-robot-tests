@@ -47,8 +47,11 @@ pipeline {
                         }
                     } else {
                         def sevenZip = (params.SEVENZIP_EXE ?: 'C:\\\\Program Files\\\\7-Zip\\\\7z.exe').trim()
-                        def antCmd = antHome ? "\"${antHome}\\bin\\ant.bat\"" : 'ant'
-                        bat "${antCmd} -Dsevenzip.executable=\"${sevenZip}\" -f build.xml all"
+                        if (antHome) {
+                            bat "call \"${antHome}\\bin\\ant.bat\" -Dsevenzip.executable=\"${sevenZip}\" -f build.xml all"
+                        } else {
+                            bat "ant -Dsevenzip.executable=\"${sevenZip}\" -f build.xml all"
+                        }
                     }
                 }
             }
@@ -60,6 +63,7 @@ pipeline {
         }
     }
 }
+
 
 
 

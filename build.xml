@@ -3,49 +3,95 @@
     <!-- Chemin 7-Zip : par défaut "7z" (si dans PATH). Sur Jenkins Windows, passer -Dsevenzip.executable="C:\Program Files\7-Zip\7z.exe" -->
     <property name="sevenzip.executable" value="7z"/>
 
-    <!-- Préparation des répertoires (créer src/devproxy et src/ifsf s'ils n'existent pas, pour clone Git vide) -->
-    <target name="init">
+    <!-- Horodatage pour le nom des artefacts : V2026-02-10_08-42-09 -->
+    <target name="version">
+        <tstamp>
+            <format property="version.timestamp" pattern="yyyy-MM-dd_HH-mm-ss"/>
+        </tstamp>
+        <property name="version" value="V${version.timestamp}"/>
+    </target>
+
+    <!-- Préparation des répertoires (créer les dossiers sources ; placeholder si clone Git vide) -->
+    <target name="init" depends="version">
         <mkdir dir="dist"/>
         <mkdir dir="src/devproxy"/>
         <mkdir dir="src/ifsf"/>
+        <mkdir dir="src/ifsf_lib"/>
+        <mkdir dir="src/xmlconfigdll"/>
+        <mkdir dir="src/xmlconfiglib"/>
         <echo file="src/devproxy/placeholder.bat" message="@echo off&#10;echo Placeholder - remplacer par le contenu DevProxy"/>
         <echo file="src/ifsf/placeholder.bat" message="@echo off&#10;echo Placeholder - remplacer par le contenu IFSF"/>
+        <echo file="src/ifsf_lib/placeholder.bat" message="@echo off&#10;echo Placeholder - remplacer par le contenu IFSF_Lib"/>
+        <echo file="src/xmlconfigdll/placeholder.bat" message="@echo off&#10;echo Placeholder - remplacer par le contenu XMLConfigDLL"/>
+        <echo file="src/xmlconfiglib/placeholder.bat" message="@echo off&#10;echo Placeholder - remplacer par le contenu XMLConfigLib"/>
     </target>
 
-    <!-- Assemblage DevProxy -->
+    <!-- Assemblage -->
     <target name="assemble-devproxy" depends="init">
         <copy todir="dist/devproxy" includeEmptyDirs="true">
             <fileset dir="src/devproxy"/>
         </copy>
     </target>
-
-    <!-- Assemblage IFSF -->
     <target name="assemble-ifsf" depends="init">
         <copy todir="dist/ifsf" includeEmptyDirs="true">
             <fileset dir="src/ifsf"/>
         </copy>
     </target>
+    <target name="assemble-ifsf_lib" depends="init">
+        <copy todir="dist/ifsf_lib" includeEmptyDirs="true">
+            <fileset dir="src/ifsf_lib"/>
+        </copy>
+    </target>
+    <target name="assemble-xmlconfigdll" depends="init">
+        <copy todir="dist/xmlconfigdll" includeEmptyDirs="true">
+            <fileset dir="src/xmlconfigdll"/>
+        </copy>
+    </target>
+    <target name="assemble-xmlconfiglib" depends="init">
+        <copy todir="dist/xmlconfiglib" includeEmptyDirs="true">
+            <fileset dir="src/xmlconfiglib"/>
+        </copy>
+    </target>
 
-    <!-- Packaging DevProxy (vérifier que sevenzip.executable est passé par Jenkins sur Windows) -->
+    <!-- Packaging : nommage DevProxy_V2026-02-10_08-42-09_Binaries.7z -->
     <target name="package-devproxy" depends="assemble-devproxy">
         <exec executable="${sevenzip.executable}" failonerror="true">
             <arg value="a"/>
-            <arg value="dist/DevProxy.7z"/>
+            <arg value="dist/DevProxy_${version}_Binaries.7z"/>
             <arg value="dist/devproxy/*"/>
         </exec>
     </target>
-
-    <!-- Packaging IFSF -->
     <target name="package-ifsf" depends="assemble-ifsf">
         <exec executable="${sevenzip.executable}" failonerror="true">
             <arg value="a"/>
-            <arg value="dist/IFSF.7z"/>
+            <arg value="dist/IFSF_${version}_Binaries.7z"/>
             <arg value="dist/ifsf/*"/>
         </exec>
     </target>
+    <target name="package-ifsf_lib" depends="assemble-ifsf_lib">
+        <exec executable="${sevenzip.executable}" failonerror="true">
+            <arg value="a"/>
+            <arg value="dist/IFSF_Lib_${version}_Binaries.7z"/>
+            <arg value="dist/ifsf_lib/*"/>
+        </exec>
+    </target>
+    <target name="package-xmlconfigdll" depends="assemble-xmlconfigdll">
+        <exec executable="${sevenzip.executable}" failonerror="true">
+            <arg value="a"/>
+            <arg value="dist/XMLConfigDLL_${version}_Binaries.7z"/>
+            <arg value="dist/xmlconfigdll/*"/>
+        </exec>
+    </target>
+    <target name="package-xmlconfiglib" depends="assemble-xmlconfiglib">
+        <exec executable="${sevenzip.executable}" failonerror="true">
+            <arg value="a"/>
+            <arg value="dist/XMLConfigLib_${version}_Binaries.7z"/>
+            <arg value="dist/xmlconfiglib/*"/>
+        </exec>
+    </target>
 
-    <!-- Cible globale -->
-    <target name="all" depends="package-devproxy,package-ifsf"/>
+    <!-- Cible globale : 5 artefacts comme sur le build #316 -->
+    <target name="all" depends="package-devproxy,package-ifsf_lib,package-ifsf,package-xmlconfigdll,package-xmlconfiglib"/>
 
     <!-- Nettoyage -->
     <target name="clean">

@@ -8,9 +8,9 @@
         <mkdir dir="dist"/>
         <mkdir dir="src/devproxy"/>
         <mkdir dir="src/ifsf"/>
-        <!-- Placeholder exécutable (.bat) au lieu de .keep (évite ouverture Bloc-notes) -->
-        <echo file="src/devproxy/placeholder.bat" message="@echo off&#10;REM Remplacer par le contenu DevProxy&#10;exit /b 0"/>
-        <echo file="src/ifsf/placeholder.bat" message="@echo off&#10;REM Remplacer par le contenu IFSF&#10;exit /b 0"/>
+        <!-- Placeholder .keep avec message (évite ouverture Bloc-notes par double-clic sur .bat) -->
+        <echo file="src/devproxy/.keep" message="Placeholder - remplacer par le contenu DevProxy"/>
+        <echo file="src/ifsf/.keep" message="Placeholder - remplacer par le contenu IFSF"/>
     </target>
 
     <!-- Assemblage DevProxy -->

@@ -1,5 +1,8 @@
 <project name="ReleasePackage-ITA0148-WLFA" default="all" basedir=".">
 
+    <!-- Chemin 7-Zip : par défaut "7z" (si dans PATH). Sur Jenkins Windows, passer -Dsevenzip.executable="C:\Program Files\7-Zip\7z.exe" -->
+    <property name="sevenzip.executable" value="7z"/>
+
     <!-- Préparation des répertoires (créer src/devproxy et src/ifsf s'ils n'existent pas, pour clone Git vide) -->
     <target name="init">
         <mkdir dir="dist"/>
@@ -25,7 +28,7 @@
 
     <!-- Packaging DevProxy -->
     <target name="package-devproxy" depends="assemble-devproxy">
-        <exec executable="7z">
+        <exec executable="${sevenzip.executable}">
             <arg value="a"/>
             <arg value="dist/DevProxy.7z"/>
             <arg value="dist/devproxy/*"/>
@@ -34,7 +37,7 @@
 
     <!-- Packaging IFSF -->
     <target name="package-ifsf" depends="assemble-ifsf">
-        <exec executable="7z">
+        <exec executable="${sevenzip.executable}">
             <arg value="a"/>
             <arg value="dist/IFSF.7z"/>
             <arg value="dist/ifsf/*"/>

@@ -1,20 +1,24 @@
 <project name="ReleasePackage-ITA0148-WLFA" default="all" basedir=".">
 
-    <!-- Préparation des répertoires -->
+    <!-- Préparation des répertoires (créer src/devproxy et src/ifsf s'ils n'existent pas, pour clone Git vide) -->
     <target name="init">
         <mkdir dir="dist"/>
+        <mkdir dir="src/devproxy"/>
+        <mkdir dir="src/ifsf"/>
+        <echo file="src/devproxy/.keep" message="Placeholder - remplacer par le contenu DevProxy"/>
+        <echo file="src/ifsf/.keep" message="Placeholder - remplacer par le contenu IFSF"/>
     </target>
 
     <!-- Assemblage DevProxy -->
     <target name="assemble-devproxy" depends="init">
-        <copy todir="dist/devproxy">
+        <copy todir="dist/devproxy" includeEmptyDirs="true">
             <fileset dir="src/devproxy"/>
         </copy>
     </target>
 
     <!-- Assemblage IFSF -->
     <target name="assemble-ifsf" depends="init">
-        <copy todir="dist/ifsf">
+        <copy todir="dist/ifsf" includeEmptyDirs="true">
             <fileset dir="src/ifsf"/>
         </copy>
     </target>
@@ -46,3 +50,4 @@
     </target>
 
 </project>
+

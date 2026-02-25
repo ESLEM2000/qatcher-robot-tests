@@ -1,5 +1,7 @@
 // Pipeline Jenkins : Git + Ant + archive .7z
 // Si erreur "Couldn't find any revision to build" : le dépôt GitHub est vide → pousser au moins un commit (ce Jenkinsfile + build.xml, etc.) sur la branche main.
+// Si "ant n'est pas reconnu" sur Windows : installer Apache Ant et soit l'ajouter au PATH du nœud Jenkins, soit renseigner ANT_HOME (ex. C:\apache-ant-1.10.14).
+// Si "Cannot run program 7z" sur Windows : installer 7-Zip (ex. https://www.7-zip.org/) et renseigner le paramètre SEVENZIP_EXE (défaut : C:\Program Files\7-Zip\7z.exe).
 
 pipeline {
     agent any
@@ -15,6 +17,16 @@ pipeline {
             defaultValue: 'main',
             description: 'Branche à construire (si erreur "no revision", essayer master).'
         )
+        string(
+            name: 'ANT_HOME',
+            defaultValue: '',
+            description: '(Optionnel) Chemin d\'installation d\'Apache Ant. Si vide, la commande "ant" doit être dans le PATH. Ex. Windows : C:\\apache-ant-1.10.14'
+        )
+        string(
+            name: 'SEVENZIP_EXE',
+            defaultValue: 'C:\\Program Files\\7-Zip\\7z.exe',
+            description: 'Exécutable 7-Zip (obligatoire sur Windows si 7z n\'est pas dans le PATH). Ex. Windows : C:\\Program Files\\7-Zip\\7z.exe'
+        )
     }
 
     stages {
@@ -26,10 +38,17 @@ pipeline {
         stage('Build Packages') {
             steps {
                 script {
+                    def antHome = (params.ANT_HOME ?: '').trim()
                     if (isUnix()) {
-                        sh 'ant -f build.xml all'
+                        if (antHome) {
+                            sh """export ANT_HOME="${antHome}" && "\${ANT_HOME}/bin/ant" -f build.xml all"""
+                        } else {
+                            sh 'ant -f build.xml all'
+                        }
                     } else {
-                        bat 'ant -f build.xml all'
+                        def sevenZip = (params.SEVENZIP_EXE ?: 'C:\\\\Program Files\\\\7-Zip\\\\7z.exe').trim()
+                        def antCmd = antHome ? "\"${antHome}\\bin\\ant.bat\"" : 'ant'
+                        bat "${antCmd} -Dsevenzip.executable=\"${sevenZip}\" -f build.xml all"
                     }
                 }
             }
@@ -41,4 +60,6 @@ pipeline {
         }
     }
 }
+
+
 

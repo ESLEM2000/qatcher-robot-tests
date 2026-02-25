@@ -1,59 +1,66 @@
-<project name="ReleasePackage-ITA0148-WLFA" default="all" basedir=".">
+// Pipeline Jenkins : Git + Ant + archive .7z
+// Si erreur "Couldn't find any revision to build" : le dépôt GitHub est vide → pousser au moins un commit (ce Jenkinsfile + build.xml, etc.) sur la branche main.
+// Si "ant n'est pas reconnu" sur Windows : installer Apache Ant et soit l'ajouter au PATH du nœud Jenkins, soit renseigner ANT_HOME (ex. C:\apache-ant-1.10.14).
+// Si "Cannot run program 7z" sur Windows : installer 7-Zip (ex. https://www.7-zip.org/) et renseigner le paramètre SEVENZIP_EXE (défaut : C:\Program Files\7-Zip\7z.exe).
 
-    <!-- Chemin 7-Zip : par défaut "7z" (si dans PATH). Sur Jenkins Windows, passer -Dsevenzip.executable="C:\Program Files\7-Zip\7z.exe" -->
-    <property name="sevenzip.executable" value="7z"/>
+pipeline {
+    agent any
 
-    <!-- Préparation des répertoires (créer src/devproxy et src/ifsf s'ils n'existent pas, pour clone Git vide) -->
-    <target name="init">
-        <mkdir dir="dist"/>
-        <mkdir dir="src/devproxy"/>
-        <mkdir dir="src/ifsf"/>
-        <!-- Placeholder exécutable (.bat) au lieu de .keep (évite ouverture Bloc-notes) -->
-        <echo file="src/devproxy/placeholder.bat" message="@echo off&#10;REM Remplacer par le contenu DevProxy&#10;exit /b 0"/>
-        <echo file="src/ifsf/placeholder.bat" message="@echo off&#10;REM Remplacer par le contenu IFSF&#10;exit /b 0"/>
-    </target>
+    parameters {
+        string(
+            name: 'GIT_REPO_URL',
+            defaultValue: 'https://github.com/ESLEM2000/qatcher-robot-tests.git',
+            description: 'URL du dépôt Git à cloner.'
+        )
+        string(
+            name: 'GIT_BRANCH',
+            defaultValue: 'main',
+            description: 'Branche à construire (si erreur "no revision", essayer master).'
+        )
+        string(
+            name: 'ANT_HOME',
+            defaultValue: '',
+            description: '(Optionnel) Chemin d\'installation d\'Apache Ant. Si vide, la commande "ant" doit être dans le PATH. Ex. Windows : C:\\apache-ant-1.10.14'
+        )
+        string(
+            name: 'SEVENZIP_EXE',
+            defaultValue: 'C:\\Program Files\\7-Zip\\7z.exe',
+            description: 'Exécutable 7-Zip (obligatoire sur Windows si 7z n\'est pas dans le PATH). Ex. Windows : C:\\Program Files\\7-Zip\\7z.exe'
+        )
+    }
 
-    <!-- Assemblage DevProxy -->
-    <target name="assemble-devproxy" depends="init">
-        <copy todir="dist/devproxy" includeEmptyDirs="true">
-            <fileset dir="src/devproxy"/>
-        </copy>
-    </target>
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: "${params.GIT_BRANCH}", url: params.GIT_REPO_URL
+            }
+        }
+        stage('Build Packages') {
+            steps {
+                script {
+                    def antHome = (params.ANT_HOME ?: '').trim()
+                    if (isUnix()) {
+                        if (antHome) {
+                            sh """export ANT_HOME="${antHome}" && "\${ANT_HOME}/bin/ant" -f build.xml all"""
+                        } else {
+                            sh 'ant -f build.xml all'
+                        }
+                    } else {
+                        def sevenZip = (params.SEVENZIP_EXE ?: 'C:\\\\Program Files\\\\7-Zip\\\\7z.exe').trim()
+                        def antCmd = antHome ? "\"${antHome}\\bin\\ant.bat\"" : 'ant'
+                        bat "${antCmd} -Dsevenzip.executable=\"${sevenZip}\" -f build.xml all"
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            archiveArtifacts artifacts: 'dist/*.7z', fingerprint: true
+        }
+    }
+}
 
-    <!-- Assemblage IFSF -->
-    <target name="assemble-ifsf" depends="init">
-        <copy todir="dist/ifsf" includeEmptyDirs="true">
-            <fileset dir="src/ifsf"/>
-        </copy>
-    </target>
-
-    <!-- Packaging DevProxy -->
-    <target name="package-devproxy" depends="assemble-devproxy">
-        <exec executable="${sevenzip.executable}">
-            <arg value="a"/>
-            <arg value="dist/DevProxy.7z"/>
-            <arg value="dist/devproxy/*"/>
-        </exec>
-    </target>
-
-    <!-- Packaging IFSF -->
-    <target name="package-ifsf" depends="assemble-ifsf">
-        <exec executable="${sevenzip.executable}">
-            <arg value="a"/>
-            <arg value="dist/IFSF.7z"/>
-            <arg value="dist/ifsf/*"/>
-        </exec>
-    </target>
-
-    <!-- Cible globale -->
-    <target name="all" depends="package-devproxy,package-ifsf"/>
-
-    <!-- Nettoyage -->
-    <target name="clean">
-        <delete dir="dist"/>
-    </target>
-
-</project>
 
 
 

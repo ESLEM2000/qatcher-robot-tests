@@ -8,9 +8,8 @@
         <mkdir dir="dist"/>
         <mkdir dir="src/devproxy"/>
         <mkdir dir="src/ifsf"/>
-        <!-- Placeholder .keep avec message (évite ouverture Bloc-notes par double-clic sur .bat) -->
-        <echo file="src/devproxy/.keep" message="Placeholder - remplacer par le contenu DevProxy"/>
-        <echo file="src/ifsf/.keep" message="Placeholder - remplacer par le contenu IFSF"/>
+        <echo file="src/devproxy/placeholder.bat" message="@echo off&#10;echo Placeholder - remplacer par le contenu DevProxy"/>
+        <echo file="src/ifsf/placeholder.bat" message="@echo off&#10;echo Placeholder - remplacer par le contenu IFSF"/>
     </target>
 
     <!-- Assemblage DevProxy -->
@@ -27,9 +26,9 @@
         </copy>
     </target>
 
-    <!-- Packaging DevProxy -->
+    <!-- Packaging DevProxy (vérifier que sevenzip.executable est passé par Jenkins sur Windows) -->
     <target name="package-devproxy" depends="assemble-devproxy">
-        <exec executable="${sevenzip.executable}">
+        <exec executable="${sevenzip.executable}" failonerror="true">
             <arg value="a"/>
             <arg value="dist/DevProxy.7z"/>
             <arg value="dist/devproxy/*"/>
@@ -38,7 +37,7 @@
 
     <!-- Packaging IFSF -->
     <target name="package-ifsf" depends="assemble-ifsf">
-        <exec executable="${sevenzip.executable}">
+        <exec executable="${sevenzip.executable}" failonerror="true">
             <arg value="a"/>
             <arg value="dist/IFSF.7z"/>
             <arg value="dist/ifsf/*"/>

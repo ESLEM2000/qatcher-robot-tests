@@ -63,21 +63,36 @@
         </condition>
     </target>
 
-    <!-- Copier le contenu réel depuis les répertoires d'entrée vers src/ (pour packaging vers Move 3500) -->
+    <!-- Copier le contenu réel depuis les répertoires d'entrée vers src/ (pour packaging vers Move 3500). antcall avec if= pour compat Ant 1.10.x (copy n'a pas "if"). -->
     <target name="copy-input-to-src" depends="check-input-dirs">
-        <copy todir="src/devproxy" includeEmptyDirs="true" verbose="true" if="has.devproxy.input">
+        <antcall target="do-copy-devproxy" if="has.devproxy.input"/>
+        <antcall target="do-copy-ifsf" if="has.ifsf.input"/>
+        <antcall target="do-copy-ifsf_lib" if="has.ifsf_lib.input"/>
+        <antcall target="do-copy-xmlconfigdll" if="has.xmlconfigdll.input"/>
+        <antcall target="do-copy-xmlconfiglib" if="has.xmlconfiglib.input"/>
+    </target>
+    <target name="do-copy-devproxy">
+        <copy todir="src/devproxy" includeEmptyDirs="true" verbose="true">
             <fileset dir="${devproxy.input.dir}"/>
         </copy>
-        <copy todir="src/ifsf" includeEmptyDirs="true" verbose="true" if="has.ifsf.input">
+    </target>
+    <target name="do-copy-ifsf">
+        <copy todir="src/ifsf" includeEmptyDirs="true" verbose="true">
             <fileset dir="${ifsf.input.dir}"/>
         </copy>
-        <copy todir="src/ifsf_lib" includeEmptyDirs="true" verbose="true" if="has.ifsf_lib.input">
+    </target>
+    <target name="do-copy-ifsf_lib">
+        <copy todir="src/ifsf_lib" includeEmptyDirs="true" verbose="true">
             <fileset dir="${ifsf_lib.input.dir}"/>
         </copy>
-        <copy todir="src/xmlconfigdll" includeEmptyDirs="true" verbose="true" if="has.xmlconfigdll.input">
+    </target>
+    <target name="do-copy-xmlconfigdll">
+        <copy todir="src/xmlconfigdll" includeEmptyDirs="true" verbose="true">
             <fileset dir="${xmlconfigdll.input.dir}"/>
         </copy>
-        <copy todir="src/xmlconfiglib" includeEmptyDirs="true" verbose="true" if="has.xmlconfiglib.input">
+    </target>
+    <target name="do-copy-xmlconfiglib">
+        <copy todir="src/xmlconfiglib" includeEmptyDirs="true" verbose="true">
             <fileset dir="${xmlconfiglib.input.dir}"/>
         </copy>
     </target>
@@ -155,4 +170,5 @@
     </target>
 
 </project>
+
 

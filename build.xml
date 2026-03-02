@@ -19,9 +19,10 @@
         <property name="version" value="V${version.timestamp}"/>
     </target>
 
-    <!-- Préparation des répertoires (créer les dossiers uniquement ; pas de fichiers placeholder) -->
+    <!-- Préparation des répertoires (créer les dossiers uniquement ; pas de fichiers placeholder). "empty" = source vide pour copy quand pas d'input. -->
     <target name="init" depends="version">
         <mkdir dir="dist"/>
+        <mkdir dir="empty"/>
         <mkdir dir="src/devproxy"/>
         <mkdir dir="src/ifsf"/>
         <mkdir dir="src/ifsf_lib"/>
@@ -63,37 +64,32 @@
         </condition>
     </target>
 
-    <!-- Copier le contenu réel depuis les répertoires d'entrée vers src/ (pour packaging vers Move 3500). antcall avec if= pour compat Ant 1.10.x (copy n'a pas "if"). -->
+    <!-- Copier le contenu réel depuis les répertoires d'entrée vers src/ (compat Ant 1.10.x : pas de "if" sur copy/antcall ; on utilise condition + propriété + répertoire "empty"). -->
     <target name="copy-input-to-src" depends="check-input-dirs">
-        <antcall target="do-copy-devproxy" if="has.devproxy.input"/>
-        <antcall target="do-copy-ifsf" if="has.ifsf.input"/>
-        <antcall target="do-copy-ifsf_lib" if="has.ifsf_lib.input"/>
-        <antcall target="do-copy-xmlconfigdll" if="has.xmlconfigdll.input"/>
-        <antcall target="do-copy-xmlconfiglib" if="has.xmlconfiglib.input"/>
-    </target>
-    <target name="do-copy-devproxy">
+        <condition property="devproxy.copy.src" value="${devproxy.input.dir}"><isset property="has.devproxy.input"/></condition>
+        <property name="devproxy.copy.src" value="empty"/>
+        <condition property="ifsf.copy.src" value="${ifsf.input.dir}"><isset property="has.ifsf.input"/></condition>
+        <property name="ifsf.copy.src" value="empty"/>
+        <condition property="ifsf_lib.copy.src" value="${ifsf_lib.input.dir}"><isset property="has.ifsf_lib.input"/></condition>
+        <property name="ifsf_lib.copy.src" value="empty"/>
+        <condition property="xmlconfigdll.copy.src" value="${xmlconfigdll.input.dir}"><isset property="has.xmlconfigdll.input"/></condition>
+        <property name="xmlconfigdll.copy.src" value="empty"/>
+        <condition property="xmlconfiglib.copy.src" value="${xmlconfiglib.input.dir}"><isset property="has.xmlconfiglib.input"/></condition>
+        <property name="xmlconfiglib.copy.src" value="empty"/>
         <copy todir="src/devproxy" includeEmptyDirs="true" verbose="true">
-            <fileset dir="${devproxy.input.dir}"/>
+            <fileset dir="${devproxy.copy.src}"/>
         </copy>
-    </target>
-    <target name="do-copy-ifsf">
         <copy todir="src/ifsf" includeEmptyDirs="true" verbose="true">
-            <fileset dir="${ifsf.input.dir}"/>
+            <fileset dir="${ifsf.copy.src}"/>
         </copy>
-    </target>
-    <target name="do-copy-ifsf_lib">
         <copy todir="src/ifsf_lib" includeEmptyDirs="true" verbose="true">
-            <fileset dir="${ifsf_lib.input.dir}"/>
+            <fileset dir="${ifsf_lib.copy.src}"/>
         </copy>
-    </target>
-    <target name="do-copy-xmlconfigdll">
         <copy todir="src/xmlconfigdll" includeEmptyDirs="true" verbose="true">
-            <fileset dir="${xmlconfigdll.input.dir}"/>
+            <fileset dir="${xmlconfigdll.copy.src}"/>
         </copy>
-    </target>
-    <target name="do-copy-xmlconfiglib">
         <copy todir="src/xmlconfiglib" includeEmptyDirs="true" verbose="true">
-            <fileset dir="${xmlconfiglib.input.dir}"/>
+            <fileset dir="${xmlconfiglib.copy.src}"/>
         </copy>
     </target>
 
@@ -167,8 +163,10 @@
     <!-- Nettoyage -->
     <target name="clean">
         <delete dir="dist"/>
+        <delete dir="empty" quiet="true"/>
     </target>
 
 </project>
+
 
 

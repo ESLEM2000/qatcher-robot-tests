@@ -10,11 +10,14 @@ pipeline {
             steps {
                 script {
                     def timestamp = new Date().format("yyyy-MM-dd_HH-mm-ss")
-                    // Ecrire la liste des modules dans un fichier pour eviter l'echo cmd dans returnStdout
-                    bat "powershell -NoProfile -Command \"Out-File -InputObject (Get-ChildItem -Path src -Directory -ErrorAction SilentlyContinue).Name -FilePath modules.txt -Encoding ascii\""
-                    def modulesRaw = readFile('modules.txt').trim()
-                    def modules = modulesRaw.split("\\r?\\n").collect { it.trim() }.findAll { name ->
-                        name.length() > 0 && !name.contains('>') && !name.contains('powershell') && !name.contains('\\\\') && !name.contains(':')
+
+                    // Liste les sous-dossiers de src avec DIR (%%i car execute dans un .bat)
+                    def modulesOut = bat(
+                        script: "for /d %%i in (src\\*) do @echo %%~nxi",
+                        returnStdout: true
+                    ).trim()
+                    def modules = modulesOut.split("\\r?\\n").collect { it.trim() }.findAll { name ->
+                        name.length() > 0 && !name.contains('>') && !name.contains(':')
                     }
                     if (modules.isEmpty()) {
                         error "Aucun sous-dossier dans src/ ou dossier src/ absent. Build arrete."
@@ -23,35 +26,45 @@ pipeline {
                     modules.each { module ->
                         def modulePath = "src\\${module}"
 
-                        // Verification que le dossier n'est pas vide (derniere ligne = resultat, echo cmd sur les premieres)
-                        def filesCountOut = bat(script: "powershell -NoProfile -Command \"(Get-ChildItem -LiteralPath '${modulePath}').Count\"", returnStdout: true).trim()
-                        def filesCount = filesCountOut.split("\\r?\\n").findAll { it.trim().length() > 0 }.reverse().find { it.isNumber() } ?: filesCountOut.trim()
+                        // Verification que le dossier n'est pas vide (derniere ligne = nombre)
+                        def countOut = bat(
+                            script: "dir /b \"${modulePath}\" 2>nul | find /c /v \"\"",
+                            returnStdout: true
+                        ).trim()
+                        def filesCount = countOut.split("\\r?\\n").findAll { it.trim().length() > 0 }.reverse().find { it.isNumber() } ?: countOut.trim()
                         if (filesCount == "0") {
                             error "Le module ${module} est vide ! Build arrete."
                         }
 
-                        // Verification de placeholder.bat (derniere ligne = True/False)
-                        def placeholderOut = bat(script: "powershell -NoProfile -Command \"Test-Path -LiteralPath '${modulePath}\\\\placeholder.bat'\"", returnStdout: true).trim()
-                        def placeholderExists = placeholderOut.split("\\r?\\n").findAll { it.trim().length() > 0 }.reverse().find { it == "True" || it == "False" } ?: placeholderOut.trim()
+                        // Verification de placeholder.bat (ligne True/False)
+                        def placeOut = bat(
+                            script: "if exist \"${modulePath}\\placeholder.bat\" (echo True) else (echo False)",
+                            returnStdout: true
+                        ).trim()
+                        def placeholderExists = placeOut.split("\\r?\\n").findAll { it.trim().length() > 0 }.reverse().find { it == "True" || it == "False" } ?: placeOut.trim()
                         if (placeholderExists != "True") {
                             error "Le fichier placeholder.bat est manquant dans ${module} ! Build arrete."
                         }
 
                         // Copie des fichiers
                         bat """
-                            mkdir dist\\${module}
-                            xcopy ${modulePath} dist\\${module} /E /I /Y
+                            if not exist dist\\${module} mkdir dist\\${module}
+                            xcopy \"${modulePath}\" \"dist\\${module}\" /E /I /Y
                         """
 
-                        // Test d’exécution de placeholder.bat
+                        // Affichage du contenu copie
+                        bat "echo Contenu de dist\\${module} : & dir \"dist\\${module}\""
+
+                        // Test d'execution de placeholder.bat (sans apostrophe pour eviter erreur cmd)
                         bat """
                             echo Test execution placeholder.bat pour ${module}
-                            call dist\\${module}\\placeholder.bat
+                            call \"dist\\${module}\\placeholder.bat\"
+                            if errorlevel 1 exit /b 1
                         """
 
                         // Packaging
                         bat """
-                            "C:\\Program Files\\7-Zip\\7z.exe" a dist\\${module}_V${timestamp}_Binaries.7z dist\\${module}\\*
+                            "C:\\Program Files\\7-Zip\\7z.exe" a "dist\\${module}_V${timestamp}_Binaries.7z" "dist\\${module}\\*"
                         """
                     }
                 }
@@ -63,7 +76,7 @@ pipeline {
             archiveArtifacts artifacts: 'dist/*.7z', fingerprint: true
         }
         failure {
-            echo "Le build a échoué car un module était vide, incomplet ou que placeholder.bat n'a pas pu s'exécuter."
+            echo "Le build a echoue car un module etait vide, incomplet ou que placeholder.bat n'a pas pu s'executer."
         }
     }
 }

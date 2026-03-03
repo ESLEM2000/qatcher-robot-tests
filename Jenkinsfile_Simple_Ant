@@ -1,73 +1,34 @@
-pipeline {
-    agent any
-    stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main', url: 'https://github.com/ESLEM2000/qatcher-robot-tests.git'
-            }
-        }
-        stage('Build & Test Packages') {
-            steps {
-                script {
-                    def timestamp = new Date().format("yyyy-MM-dd_HH-mm-ss")
+def modules = bat(
+    script: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Get-ChildItem src -Directory | ForEach-Object { $_.Name }\"",
+    returnStdout: true
+).trim().split("\\r?\\n")
 
-                    // Liste les sous-dossiers de src/ avec PowerShell -Name
-                    def modules = bat(
-                        script: "powershell -Command \"Get-ChildItem src -Directory -Name\"",
-                        returnStdout: true
-                    ).trim().split("\\r?\\n")
+modules.each { module ->
+    def modulePath = "src\\${module}"
 
-                    modules.each { module ->
-                        def modulePath = "src\\${module}"
-
-                        // Vérification que le dossier n'est pas vide
-                        def filesCount = bat(
-                            script: "powershell -Command \"(Get-ChildItem ${modulePath}).Count\"",
-                            returnStdout: true
-                        ).trim()
-                        if (filesCount == "0") {
-                            error "Le module ${module} est vide ! Build arrêté."
-                        }
-
-                        // Vérification de placeholder.bat
-                        def placeholderExists = bat(
-                            script: "powershell -Command \"Test-Path ${modulePath}\\placeholder.bat\"",
-                            returnStdout: true
-                        ).trim()
-                        if (placeholderExists != "True") {
-                            error "Le fichier placeholder.bat est manquant dans ${module} ! Build arrêté."
-                        }
-
-                        // Copie des fichiers
-                        bat """
-                            mkdir dist\\${module}
-                            xcopy ${modulePath} dist\\${module} /E /I /Y
-                        """
-
-                        // Test d’exécution de placeholder.bat
-                        bat """
-                            echo Test d'exécution de placeholder.bat pour ${module}
-                            call dist\\${module}\\placeholder.bat
-                            if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
-                        """
-
-                        // Packaging
-                        bat """
-                            "C:\\Program Files\\7-Zip\\7z.exe" a dist\\${module}_V${timestamp}_Binaries.7z dist\\${module}\\*
-                        """
-                    }
-                }
-            }
-        }
+    def filesCount = bat(
+        script: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"(Get-ChildItem ${modulePath}).Count\"",
+        returnStdout: true
+    ).trim()
+    if (filesCount == "0") {
+        error "Le module ${module} est vide ! Build arrêté."
     }
-    post {
-        success {
-            archiveArtifacts artifacts: 'dist/*.7z', fingerprint: true
-        }
-        failure {
-            echo "Le build a échoué car un module était vide, incomplet ou que placeholder.bat n'a pas pu s'exécuter."
-        }
+
+    def placeholderExists = bat(
+        script: "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Test-Path ${modulePath}\\placeholder.bat\"",
+        returnStdout: true
+    ).trim()
+    if (placeholderExists != "True") {
+        error "Le fichier placeholder.bat est manquant dans ${module} ! Build arrêté."
     }
+
+    bat """
+        mkdir dist\\${module}
+        xcopy ${modulePath} dist\\${module} /E /I /Y
+        call dist\\${module}\\placeholder.bat
+        if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
+        "C:\\Program Files\\7-Zip\\7z.exe" a dist\\${module}_V${timestamp}_Binaries.7z dist\\${module}\\*
+    """
 }
 
 

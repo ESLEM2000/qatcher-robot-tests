@@ -10,9 +10,10 @@ pipeline {
             steps {
                 script {
                     def timestamp = new Date().format("yyyy-MM-dd_HH-mm-ss")
-                    // Liste les sous-dossiers de src/ avec PowerShell sans utiliser $_
+
+                    // Liste les sous-dossiers de src/ avec PowerShell -Name
                     def modules = bat(
-                        script: "powershell -Command \"Get-ChildItem src -Directory | Select-Object -ExpandProperty Name\"",
+                        script: "powershell -Command \"Get-ChildItem src -Directory -Name\"",
                         returnStdout: true
                     ).trim().split("\\r?\\n")
 
@@ -47,6 +48,7 @@ pipeline {
                         bat """
                             echo Test d'exécution de placeholder.bat pour ${module}
                             call dist\\${module}\\placeholder.bat
+                            if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
                         """
 
                         // Packaging
@@ -67,7 +69,6 @@ pipeline {
         }
     }
 }
-
 
 
 

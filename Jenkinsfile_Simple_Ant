@@ -10,9 +10,9 @@ pipeline {
             steps {
                 script {
                     def timestamp = new Date().format("yyyy-MM-dd_HH-mm-ss")
-                    // Liste les sous-dossiers de src/ avec PowerShell
+                    // Liste les sous-dossiers de src/ avec PowerShell sans utiliser $_
                     def modules = bat(
-                        script: "powershell -Command \"Get-ChildItem src -Directory | ForEach-Object { $_.Name }\"",
+                        script: "powershell -Command \"Get-ChildItem src -Directory | Select-Object -ExpandProperty Name\"",
                         returnStdout: true
                     ).trim().split("\\r?\\n")
 
@@ -20,11 +20,11 @@ pipeline {
                         def modulePath = "src\\${module}"
 
                         // Vérification que le dossier n'est pas vide
-                        def files = bat(
-                            script: "powershell -Command \"Get-ChildItem ${modulePath} | Measure-Object | % { $_.Count }\"",
+                        def filesCount = bat(
+                            script: "powershell -Command \"(Get-ChildItem ${modulePath}).Count\"",
                             returnStdout: true
                         ).trim()
-                        if (files == "0") {
+                        if (filesCount == "0") {
                             error "Le module ${module} est vide ! Build arrêté."
                         }
 
@@ -67,6 +67,7 @@ pipeline {
         }
     }
 }
+
 
 
 

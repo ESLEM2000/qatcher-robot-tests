@@ -10,31 +10,31 @@ pipeline {
             steps {
                 script {
                     def timestamp = new Date().format("yyyy-MM-dd_HH-mm-ss")
-                    // Liste les sous-dossiers de src/ (sans pipe pour eviter que cmd.exe intercepte)
-                    def modules = bat(
-                        script: "powershell -NoProfile -Command \"(Get-ChildItem -Path src -Directory).Name\"",
-                        returnStdout: true
-                    ).trim().split("\\r?\\n")
+                    // Ecrire la liste des modules dans un fichier pour eviter l'echo cmd dans returnStdout
+                    bat "powershell -NoProfile -Command \"Out-File -InputObject (Get-ChildItem -Path src -Directory -ErrorAction SilentlyContinue).Name -FilePath modules.txt -Encoding ascii\""
+                    def modulesRaw = readFile('modules.txt').trim()
+                    def modules = modulesRaw.split("\\r?\\n").collect { it.trim() }.findAll { name ->
+                        name.length() > 0 && !name.contains('>') && !name.contains('powershell') && !name.contains('\\\\') && !name.contains(':')
+                    }
+                    if (modules.isEmpty()) {
+                        error "Aucun sous-dossier dans src/ ou dossier src/ absent. Build arrete."
+                    }
 
                     modules.each { module ->
                         def modulePath = "src\\${module}"
 
-                        // Verification que le dossier n'est pas vide (chemin entre quotes pour PowerShell)
-                        def filesCount = bat(
-                            script: "powershell -NoProfile -Command \"(Get-ChildItem -LiteralPath '${modulePath}').Count\"",
-                            returnStdout: true
-                        ).trim()
+                        // Verification que le dossier n'est pas vide (derniere ligne = resultat, echo cmd sur les premieres)
+                        def filesCountOut = bat(script: "powershell -NoProfile -Command \"(Get-ChildItem -LiteralPath '${modulePath}').Count\"", returnStdout: true).trim()
+                        def filesCount = filesCountOut.split("\\r?\\n").findAll { it.trim().length() > 0 }.reverse().find { it.isNumber() } ?: filesCountOut.trim()
                         if (filesCount == "0") {
-                            error "Le module ${module} est vide ! Build arrêté."
+                            error "Le module ${module} est vide ! Build arrete."
                         }
 
-                        // Verification de placeholder.bat
-                        def placeholderExists = bat(
-                            script: "powershell -NoProfile -Command \"Test-Path -LiteralPath '${modulePath}\\\\placeholder.bat'\"",
-                            returnStdout: true
-                        ).trim()
+                        // Verification de placeholder.bat (derniere ligne = True/False)
+                        def placeholderOut = bat(script: "powershell -NoProfile -Command \"Test-Path -LiteralPath '${modulePath}\\\\placeholder.bat'\"", returnStdout: true).trim()
+                        def placeholderExists = placeholderOut.split("\\r?\\n").findAll { it.trim().length() > 0 }.reverse().find { it == "True" || it == "False" } ?: placeholderOut.trim()
                         if (placeholderExists != "True") {
-                            error "Le fichier placeholder.bat est manquant dans ${module} ! Build arrêté."
+                            error "Le fichier placeholder.bat est manquant dans ${module} ! Build arrete."
                         }
 
                         // Copie des fichiers

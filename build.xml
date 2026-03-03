@@ -1,4 +1,11 @@
 <project name="ReleasePackage-ITA0148-WLFA" default="all" basedir=".">
+    <!--
+      Les 3 .7z (DevProxy, IFSF, XMLConfigDLL) servent à l'upgrade IFSF sur le terminal.
+      Côté installation : télécharger le dernier build réussi depuis Jenkins (IFSF_JENKINS_URL),
+      extraire dans IFSF_BUILD_DIR, sélectionner les fichiers selon le type de terminal
+      (TETRA/T2/SELF via IFSF_TERMINAL_TYPE ou QAtcherTerminalID), préparer APPL_IFSF.MXX,
+      puis installer via Local Upgrade.
+    -->
 
     <!-- Préparation des répertoires -->
     <target name="init">
@@ -33,6 +40,20 @@
               unless="dist/ifsf/placeholder.bat"/>
     </target>
 
+    <!-- Assemblage XMLConfigDLL -->
+    <target name="assemble-xmlconfigdll" depends="init">
+        <copy todir="dist/xmlconfigdll">
+            <fileset dir="src/xmlconfigdll">
+                <include name="**/*"/>
+                <include name="placeholder.bat"/>
+            </fileset>
+        </copy>
+        <!-- Vérification -->
+        <echo message="Vérification XMLConfigDLL..."/>
+        <fail message="XMLConfigDLL vide ou placeholder.bat manquant !" 
+              unless="dist/xmlconfigdll/placeholder.bat"/>
+    </target>
+
     <!-- Packaging DevProxy -->
     <target name="package-devproxy" depends="assemble-devproxy">
         <exec executable="7z">
@@ -51,8 +72,17 @@
         </exec>
     </target>
 
+    <!-- Packaging XMLConfigDLL -->
+    <target name="package-xmlconfigdll" depends="assemble-xmlconfigdll">
+        <exec executable="7z">
+            <arg value="a"/>
+            <arg value="dist/XMLConfigDLL.7z"/>
+            <arg value="dist/xmlconfigdll/*"/>
+        </exec>
+    </target>
+
     <!-- Cible globale -->
-    <target name="all" depends="package-devproxy,package-ifsf"/>
+    <target name="all" depends="package-devproxy,package-ifsf,package-xmlconfigdll"/>
 
     <!-- Nettoyage -->
     <target name="clean">

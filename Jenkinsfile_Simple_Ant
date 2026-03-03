@@ -10,10 +10,9 @@ pipeline {
             steps {
                 script {
                     def timestamp = new Date().format("yyyy-MM-dd_HH-mm-ss")
-
-                    // Liste les sous-dossiers de src avec DIR
+                    // Liste les sous-dossiers de src/ avec PowerShell sans utiliser $_
                     def modules = bat(
-                        script: "for /d %i in (src\\*) do @echo %~nxi",
+                        script: "powershell -Command \"Get-ChildItem src -Directory | Select-Object -ExpandProperty Name\"",
                         returnStdout: true
                     ).trim().split("\\r?\\n")
 
@@ -22,7 +21,7 @@ pipeline {
 
                         // Vérification que le dossier n'est pas vide
                         def filesCount = bat(
-                            script: "dir /b ${modulePath} | find /c /v \"\"",
+                            script: "powershell -Command \"(Get-ChildItem ${modulePath}).Count\"",
                             returnStdout: true
                         ).trim()
                         if (filesCount == "0") {
@@ -31,7 +30,7 @@ pipeline {
 
                         // Vérification de placeholder.bat
                         def placeholderExists = bat(
-                            script: "if exist ${modulePath}\\placeholder.bat (echo True) else (echo False)",
+                            script: "powershell -Command \"Test-Path ${modulePath}\\placeholder.bat\"",
                             returnStdout: true
                         ).trim()
                         if (placeholderExists != "True") {
@@ -46,9 +45,8 @@ pipeline {
 
                         // Test d’exécution de placeholder.bat
                         bat """
-                            echo Test d'exécution de placeholder.bat pour ${module}
+                            echo Test execution placeholder.bat pour ${module}
                             call dist\\${module}\\placeholder.bat
-                            if %ERRORLEVEL% NEQ 0 exit /b %ERRORLEVEL%
                         """
 
                         // Packaging

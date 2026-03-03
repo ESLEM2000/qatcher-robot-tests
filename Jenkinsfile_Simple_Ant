@@ -1,3 +1,20 @@
+// =============================================================================
+// Build des packages IFSF (artefacts .7z pour upgrade sur le terminal)
+// =============================================================================
+// Les 3 archives .7z (DevProxy, IFSF, XMLConfigDLL) contiennent les fichiers
+// nécessaires pour mettre à jour le logiciel IFSF sur le terminal.
+//
+// Flux côté installation (job IFSF-install ou script local) :
+// 1. Téléchargement du dernier build réussi depuis Jenkins (IFSF_JENKINS_URL).
+// 2. Extraction des 3 .7z dans IFSF_BUILD_DIR.
+// 3. Sélection des fichiers selon le type de terminal (TETRA / T2 / SELF),
+//    défini par IFSF_TERMINAL_TYPE ou déduit de QAtcherTerminalID.
+// 4. Préparation du répertoire équivalent APPL_IFSF.MXX.
+// 5. Installation via Local Upgrade (/package et /import).
+//
+// Ce job doit publier des artefacts dont les noms correspondent aux motifs
+// DevProxy*.7z, IFSF*.7z, XMLConfigDLL*.7z (voir ifsf_config.ps1).
+// =============================================================================
 pipeline {
     agent any
     stages {

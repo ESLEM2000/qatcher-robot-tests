@@ -10,27 +10,27 @@ pipeline {
             steps {
                 script {
                     def timestamp = new Date().format("yyyy-MM-dd_HH-mm-ss")
-                    // Liste les sous-dossiers de src/ avec PowerShell sans utiliser $_
+                    // Liste les sous-dossiers de src/ (sans pipe pour eviter que cmd.exe intercepte)
                     def modules = bat(
-                        script: "powershell -Command \"Get-ChildItem src -Directory | Select-Object -ExpandProperty Name\"",
+                        script: "powershell -NoProfile -Command \"(Get-ChildItem -Path src -Directory).Name\"",
                         returnStdout: true
                     ).trim().split("\\r?\\n")
 
                     modules.each { module ->
                         def modulePath = "src\\${module}"
 
-                        // Vérification que le dossier n'est pas vide
+                        // Verification que le dossier n'est pas vide (chemin entre quotes pour PowerShell)
                         def filesCount = bat(
-                            script: "powershell -Command \"(Get-ChildItem ${modulePath}).Count\"",
+                            script: "powershell -NoProfile -Command \"(Get-ChildItem -LiteralPath '${modulePath}').Count\"",
                             returnStdout: true
                         ).trim()
                         if (filesCount == "0") {
                             error "Le module ${module} est vide ! Build arrêté."
                         }
 
-                        // Vérification de placeholder.bat
+                        // Verification de placeholder.bat
                         def placeholderExists = bat(
-                            script: "powershell -Command \"Test-Path ${modulePath}\\placeholder.bat\"",
+                            script: "powershell -NoProfile -Command \"Test-Path -LiteralPath '${modulePath}\\\\placeholder.bat'\"",
                             returnStdout: true
                         ).trim()
                         if (placeholderExists != "True") {
@@ -67,6 +67,7 @@ pipeline {
         }
     }
 }
+
 
 
 

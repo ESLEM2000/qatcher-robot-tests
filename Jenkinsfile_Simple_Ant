@@ -46,18 +46,10 @@ pipeline {
                     def devProxyPath = params.DEVPROXY_DIR.trim()
                     def ifsfPath = params.IFSF_DIR.trim()
                     def xmlPath = params.XMLCONFIGDLL_DIR.trim()
-                    // Créer les dossiers avec placeholder.bat (copie du fichier racine) s'ils n'existent pas
-                    // (évite l'échec 7z "fichier introuvable" quand pas de job amont)
-                    bat """
-                        if not exist "${devProxyPath}" (mkdir "${devProxyPath}" && copy placeholder.bat "${devProxyPath}\\placeholder.bat")
-                        if not exist "${ifsfPath}" (mkdir "${ifsfPath}" && copy placeholder.bat "${ifsfPath}\\placeholder.bat")
-                        if not exist "${xmlPath}" (mkdir "${xmlPath}" && copy placeholder.bat "${xmlPath}\\placeholder.bat")
-                    """
-                    // Supprimer d'éventuels placeholder.txt vides (résidus d'anciens runs)
-                    bat """
-                        if exist "${devProxyPath}\\placeholder.txt" del "${devProxyPath}\\placeholder.txt"
-                        if exist "${ifsfPath}\\placeholder.txt" del "${ifsfPath}\\placeholder.txt"
-                        if exist "${xmlPath}\\placeholder.txt" del "${xmlPath}\\placeholder.txt"
+                    // Si les dossiers n'existent pas (pas de job amont), créer la structure complète
+                    // Bin/GNU_ARM_RELEASE_TETRA|T2|SELF avec les noms de binaires attendus (placeholders)
+                    powershell """
+                        & .\\create_ifsf_placeholder_structure.ps1 -DevProxyDir '${devProxyPath}' -IFSFDir '${ifsfPath}' -XMLConfigDLLDir '${xmlPath}'
                     """
                     bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\DevProxy.7z \"${devProxyPath}\\*\""
                     bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\IFSF.7z \"${ifsfPath}\\*\""

@@ -13,7 +13,7 @@
 // Paramètres optionnels : chemins vers les dossiers (relatifs au workspace).
 // =============================================================================
 pipeline {
-    agent { label 'windows' }
+    agent any
     parameters {
         string(name: 'GIT_REPO_URL', defaultValue: 'https://github.com/ESLEM2000/qatcher-robot-tests.git', description: 'URL du dépôt Git')
         string(name: 'GIT_BRANCH', defaultValue: 'main', description: 'Branche Git à cloner')

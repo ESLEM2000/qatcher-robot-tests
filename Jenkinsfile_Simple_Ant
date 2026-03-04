@@ -1,64 +1,96 @@
 // =============================================================================
-// Jenkins : packaging des vrais artefacts IFSF (structure Bin/GNU_ARM_RELEASE_*)
+// Build des packages IFSF (artefacts .7z pour upgrade sur le terminal)
 // =============================================================================
-// Ce job crée les 3 .7z (DevProxy, IFSF, XMLConfigDLL) à partir de sorties de
-// compilation (IngeDev ou autre). Les .7z auront la structure attendue par
-// download_ifsf_from_jenkins.ps1 / prepare_ifsf_from_copy.ps1.
+// Les 3 archives .7z (DevProxy, IFSF, XMLConfigDLL) contiennent les fichiers
+// nécessaires pour mettre à jour le logiciel IFSF sur le terminal.
 //
-// Deux modes :
-// 1) Copy Artifacts : copier les artefacts d'un job de compilation IFSF qui
-//    publie les dossiers DevProxy, IFSF, XMLConfigDLL (chacun avec Bin/ et HOST/).
-// 2) Workspace : le workspace contient déjà ces dossiers (build en amont).
+// Flux côté installation (job IFSF-install ou script local) :
+// 1. Téléchargement du dernier build réussi depuis Jenkins (IFSF_JENKINS_URL).
+// 2. Extraction des 3 .7z dans IFSF_BUILD_DIR.
+// 3. Sélection des fichiers selon le type de terminal (TETRA / T2 / SELF),
+//    défini par IFSF_TERMINAL_TYPE ou déduit de QAtcherTerminalID.
+// 4. Préparation du répertoire équivalent APPL_IFSF.MXX.
+// 5. Installation via Local Upgrade (/package et /import).
 //
-// Paramètres optionnels : chemins vers les dossiers (relatifs au workspace).
+// Ce job doit publier des artefacts dont les noms correspondent aux motifs
+// DevProxy*.7z, IFSF*.7z, XMLConfigDLL*.7z (voir ifsf_config.ps1).
 // =============================================================================
 pipeline {
-    agent { label 'windows' }
-    parameters {
-        string(name: 'GIT_REPO_URL', defaultValue: 'https://github.com/ESLEM2000/qatcher-robot-tests.git', description: 'URL du dépôt Git')
-        string(name: 'GIT_BRANCH', defaultValue: 'main', description: 'Branche Git à cloner')
-        string(name: 'DEVPROXY_DIR', defaultValue: 'DevProxy', description: 'Dossier ou sous-dossier contenant Bin/GNU_ARM_RELEASE_* pour DevProxy')
-        string(name: 'IFSF_DIR', defaultValue: 'IFSF', description: 'Dossier contenant Bin/ et éventuellement IFSF binaires')
-        string(name: 'XMLCONFIGDLL_DIR', defaultValue: 'XMLConfigDLL', description: 'Dossier contenant Bin/ et HOST/ pour XMLConfigDLL')
-        string(name: 'UPSTREAM_JOB', defaultValue: '', description: 'Job Jenkins dont copier les artefacts (vide = utiliser le workspace)')
-    }
+    agent any
     stages {
-        stage('Checkout Git') {
+        stage('Checkout') {
             steps {
-                git branch: "${params.GIT_BRANCH}", url: "${params.GIT_REPO_URL}"
+                git branch: 'main', url: 'https://github.com/ESLEM2000/qatcher-robot-tests.git'
             }
         }
-        stage('Préparer sources') {
-            when { expression { return params.UPSTREAM_JOB?.trim() } }
-            steps {
-                copyArtifacts(
-                    projectName: "${params.UPSTREAM_JOB}",
-                    selector: lastSuccessful(),
-                    filter: '**/*',
-                    optional: false
-                )
-            }
-        }
-        stage('Créer les .7z') {
+        stage('Build & Test Packages') {
             steps {
                 script {
-                    bat 'if not exist dist mkdir dist'
-                    def devProxyPath = params.DEVPROXY_DIR.trim()
-                    def ifsfPath = params.IFSF_DIR.trim()
-                    def xmlPath = params.XMLCONFIGDLL_DIR.trim()
-                    bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\DevProxy.7z \"${devProxyPath}\\*\""
-                    bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\IFSF.7z \"${ifsfPath}\\*\""
-                    bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\XMLConfigDLL.7z \"${xmlPath}\\*\""
+                    def timestamp = new Date().format("yyyy-MM-dd_HH-mm-ss")
+
+                    // Liste les sous-dossiers de src avec DIR (%%i car execute dans un .bat)
+                    def modulesOut = bat(
+                        script: "for /d %%i in (src\\*) do @echo %%~nxi",
+                        returnStdout: true
+                    ).trim()
+                    def modules = modulesOut.split("\\r?\\n").collect { it.trim() }.findAll { name ->
+                        name.length() > 0 && !name.contains('>') && !name.contains(':')
+                    }
+                    if (modules.isEmpty()) {
+                        error "Aucun sous-dossier dans src/ ou dossier src/ absent. Build arrete."
+                    }
+
+                    modules.each { module ->
+                        def modulePath = "src\\${module}"
+
+                        // Verification que le dossier n'est pas vide (derniere ligne = nombre)
+                        def countOut = bat(
+                            script: "dir /b \"${modulePath}\" 2>nul | find /c /v \"\"",
+                            returnStdout: true
+                        ).trim()
+                        def filesCount = countOut.split("\\r?\\n").findAll { it.trim().length() > 0 }.reverse().find { it.isNumber() } ?: countOut.trim()
+                        if (filesCount == "0") {
+                            error "Le module ${module} est vide ! Build arrete."
+                        }
+
+                        // Verification de placeholder.bat (ligne True/False)
+                        def placeOut = bat(
+                            script: "if exist \"${modulePath}\\placeholder.bat\" (echo True) else (echo False)",
+                            returnStdout: true
+                        ).trim()
+                        def placeholderExists = placeOut.split("\\r?\\n").findAll { it.trim().length() > 0 }.reverse().find { it == "True" || it == "False" } ?: placeOut.trim()
+                        if (placeholderExists != "True") {
+                            error "Le fichier placeholder.bat est manquant dans ${module} ! Build arrete."
+                        }
+
+                        // Copie des fichiers
+                        bat """
+                            if not exist dist\\${module} mkdir dist\\${module}
+                            xcopy \"${modulePath}\" \"dist\\${module}\" /E /I /Y
+                        """
+
+                        // Affichage du contenu copie
+                        bat "echo Contenu de dist\\${module} : & dir \"dist\\${module}\""
+
+                        // Packaging (placeholder.bat sert uniquement a verifier la presence du module, pas a l'executer)
+                        bat """
+                            "C:\\Program Files\\7-Zip\\7z.exe" a "dist\\${module}_V${timestamp}_Binaries.7z" "dist\\${module}\\*"
+                        """
+                    }
                 }
             }
         }
     }
     post {
         success {
-            archiveArtifacts artifacts: 'dist/DevProxy.7z, dist/IFSF.7z, dist/XMLConfigDLL.7z', fingerprint: true
+            archiveArtifacts artifacts: 'dist/*.7z', fingerprint: true
+        }
+        failure {
+            echo "Le build a echoue : module vide, incomplet ou placeholder.bat manquant."
         }
     }
 }
+
 
 
 

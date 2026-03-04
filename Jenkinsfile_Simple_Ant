@@ -46,10 +46,21 @@ pipeline {
                     def devProxyPath = params.DEVPROXY_DIR.trim()
                     def ifsfPath = params.IFSF_DIR.trim()
                     def xmlPath = params.XMLCONFIGDLL_DIR.trim()
-                    // Si les dossiers n'existent pas (pas de job amont), créer la structure complète
-                    // Bin/GNU_ARM_RELEASE_TETRA|T2|SELF avec les noms de binaires attendus (placeholders)
+                    // Si les dossiers n'existent pas (pas de job amont), créer la structure Bin/GNU_ARM_RELEASE_* (placeholders)
                     powershell """
-                        & .\\create_ifsf_placeholder_structure.ps1 -DevProxyDir '${devProxyPath}' -IFSFDir '${ifsfPath}' -XMLConfigDLLDir '${xmlPath}'
+                        \$ErrorActionPreference = 'Stop'
+                        function Ensure-Structure { param(\$BaseDir, \$RelPaths)
+                            if (Test-Path \$BaseDir) { return }
+                            foreach (\$r in \$RelPaths) {
+                                \$full = Join-Path \$BaseDir \$r
+                                \$parent = Split-Path -Parent \$full
+                                if (-not (Test-Path \$parent)) { New-Item -ItemType Directory -Path \$parent -Force | Out-Null }
+                                [System.IO.File]::WriteAllBytes(\$full, [byte[]]@())
+                            }
+                        }
+                        Ensure-Structure '${devProxyPath}' @('Bin\\\\GNU_ARM_RELEASE_TETRA\\\\8515360465_DEV_PROXY.P3A','Bin\\\\GNU_ARM_RELEASE_T2\\\\8515360465.AGN','Bin\\\\GNU_ARM_RELEASE_SELF\\\\8515361465_DEV_PROXY.P3A')
+                        Ensure-Structure '${ifsfPath}' @('Bin\\\\GNU_ARM_RELEASE_TETRA\\\\8226760662_IFSF_0662.P3A','Bin\\\\GNU_ARM_RELEASE_T2\\\\8226760662.AGN','Bin\\\\GNU_ARM_RELEASE_SELF\\\\8226761662_IFSF_1662.P3A')
+                        Ensure-Structure '${xmlPath}' @('Bin\\\\GNU_ARM_RELEASE_TETRA\\\\8226750662_XMLCFG_DLL.P3L','Bin\\\\GNU_ARM_RELEASE_T2\\\\8226750662.LGN','Bin\\\\GNU_ARM_RELEASE_SELF\\\\8226751662_XMLCFG_DLL.P3L')
                     """
                     bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\DevProxy.7z \"${devProxyPath}\\*\""
                     bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\IFSF.7z \"${ifsfPath}\\*\""

@@ -12,46 +12,53 @@
         <mkdir dir="dist"/>
     </target>
 
-    <!-- Assemblage DevProxy -->
+    <!--
+      Schéma IFSF : Bin/GNU_ARM_RELEASE_TETRA|T2|SELF + noms de binaires (voir IFSF_STRUCTURE.md).
+      Si src/devproxy existe et contient des fichiers, on le copie ; sinon structure placeholder.
+    -->
     <target name="assemble-devproxy" depends="init">
-        <copy todir="dist/devproxy">
-            <fileset dir="src/devproxy">
-                <include name="**/*"/>
-                <include name="placeholder.bat"/>
-            </fileset>
+        <available file="src/devproxy" type="dir" property="devproxy.src.exists"/>
+        <mkdir dir="dist/devproxy/Bin/GNU_ARM_RELEASE_TETRA"/>
+        <mkdir dir="dist/devproxy/Bin/GNU_ARM_RELEASE_T2"/>
+        <mkdir dir="dist/devproxy/Bin/GNU_ARM_RELEASE_SELF"/>
+        <touch file="dist/devproxy/Bin/GNU_ARM_RELEASE_TETRA/8515360465_DEV_PROXY.P3A"/>
+        <touch file="dist/devproxy/Bin/GNU_ARM_RELEASE_T2/8515360465.AGN"/>
+        <touch file="dist/devproxy/Bin/GNU_ARM_RELEASE_SELF/8515361465_DEV_PROXY.P3A"/>
+        <copy todir="dist/devproxy" overwrite="true" if="devproxy.src.exists">
+            <fileset dir="src/devproxy" includes="**/*"/>
         </copy>
-        <!-- Vérification -->
         <echo message="Vérification DevProxy..."/>
-        <fail message="DevProxy vide ou placeholder.bat manquant !" 
-              unless="dist/devproxy/placeholder.bat"/>
+        <fail message="DevProxy : fichier TETRA manquant !" unless="dist/devproxy/Bin/GNU_ARM_RELEASE_TETRA/8515360465_DEV_PROXY.P3A"/>
     </target>
 
-    <!-- Assemblage IFSF -->
     <target name="assemble-ifsf" depends="init">
-        <copy todir="dist/ifsf">
-            <fileset dir="src/ifsf">
-                <include name="**/*"/>
-                <include name="placeholder.bat"/>
-            </fileset>
+        <available file="src/ifsf" type="dir" property="ifsf.src.exists"/>
+        <mkdir dir="dist/ifsf/Bin/GNU_ARM_RELEASE_TETRA"/>
+        <mkdir dir="dist/ifsf/Bin/GNU_ARM_RELEASE_T2"/>
+        <mkdir dir="dist/ifsf/Bin/GNU_ARM_RELEASE_SELF"/>
+        <touch file="dist/ifsf/Bin/GNU_ARM_RELEASE_TETRA/8226760662_IFSF_0662.P3A"/>
+        <touch file="dist/ifsf/Bin/GNU_ARM_RELEASE_T2/8226760662.AGN"/>
+        <touch file="dist/ifsf/Bin/GNU_ARM_RELEASE_SELF/8226761662_IFSF_1662.P3A"/>
+        <copy todir="dist/ifsf" overwrite="true" if="ifsf.src.exists">
+            <fileset dir="src/ifsf" includes="**/*"/>
         </copy>
-        <!-- Vérification -->
         <echo message="Vérification IFSF..."/>
-        <fail message="IFSF vide ou placeholder.bat manquant !" 
-              unless="dist/ifsf/placeholder.bat"/>
+        <fail message="IFSF : fichier TETRA manquant !" unless="dist/ifsf/Bin/GNU_ARM_RELEASE_TETRA/8226760662_IFSF_0662.P3A"/>
     </target>
 
-    <!-- Assemblage XMLConfigDLL -->
     <target name="assemble-xmlconfigdll" depends="init">
-        <copy todir="dist/xmlconfigdll">
-            <fileset dir="src/xmlconfigdll">
-                <include name="**/*"/>
-                <include name="placeholder.bat"/>
-            </fileset>
+        <available file="src/xmlconfigdll" type="dir" property="xmlconfigdll.src.exists"/>
+        <mkdir dir="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_TETRA"/>
+        <mkdir dir="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_T2"/>
+        <mkdir dir="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_SELF"/>
+        <touch file="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_TETRA/8226750662_XMLCFG_DLL.P3L"/>
+        <touch file="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_T2/8226750662.LGN"/>
+        <touch file="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_SELF/8226751662_XMLCFG_DLL.P3L"/>
+        <copy todir="dist/xmlconfigdll" overwrite="true" if="xmlconfigdll.src.exists">
+            <fileset dir="src/xmlconfigdll" includes="**/*"/>
         </copy>
-        <!-- Vérification -->
         <echo message="Vérification XMLConfigDLL..."/>
-        <fail message="XMLConfigDLL vide ou placeholder.bat manquant !" 
-              unless="dist/xmlconfigdll/placeholder.bat"/>
+        <fail message="XMLConfigDLL : fichier TETRA manquant !" unless="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_TETRA/8226750662_XMLCFG_DLL.P3L"/>
     </target>
 
     <!-- Packaging DevProxy -->

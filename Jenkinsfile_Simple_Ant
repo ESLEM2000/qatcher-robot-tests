@@ -53,6 +53,12 @@ pipeline {
                         if not exist "${ifsfPath}" (mkdir "${ifsfPath}" && copy placeholder.bat "${ifsfPath}\\placeholder.bat")
                         if not exist "${xmlPath}" (mkdir "${xmlPath}" && copy placeholder.bat "${xmlPath}\\placeholder.bat")
                     """
+                    // Supprimer d'éventuels placeholder.txt vides (résidus d'anciens runs)
+                    bat """
+                        if exist "${devProxyPath}\\placeholder.txt" del "${devProxyPath}\\placeholder.txt"
+                        if exist "${ifsfPath}\\placeholder.txt" del "${ifsfPath}\\placeholder.txt"
+                        if exist "${xmlPath}\\placeholder.txt" del "${xmlPath}\\placeholder.txt"
+                    """
                     bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\DevProxy.7z \"${devProxyPath}\\*\""
                     bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\IFSF.7z \"${ifsfPath}\\*\""
                     bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\XMLConfigDLL.7z \"${xmlPath}\\*\""
@@ -66,6 +72,7 @@ pipeline {
         }
     }
 }
+
 
 
 

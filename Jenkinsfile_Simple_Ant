@@ -46,12 +46,12 @@ pipeline {
                     def devProxyPath = params.DEVPROXY_DIR.trim()
                     def ifsfPath = params.IFSF_DIR.trim()
                     def xmlPath = params.XMLCONFIGDLL_DIR.trim()
-                    // Créer les dossiers avec un fichier placeholder s'ils n'existent pas
+                    // Créer les dossiers avec placeholder.bat (copie du fichier racine) s'ils n'existent pas
                     // (évite l'échec 7z "fichier introuvable" quand pas de job amont)
                     bat """
-                        if not exist "${devProxyPath}" (mkdir "${devProxyPath}" && echo. > "${devProxyPath}\\placeholder.txt")
-                        if not exist "${ifsfPath}" (mkdir "${ifsfPath}" && echo. > "${ifsfPath}\\placeholder.txt")
-                        if not exist "${xmlPath}" (mkdir "${xmlPath}" && echo. > "${xmlPath}\\placeholder.txt")
+                        if not exist "${devProxyPath}" (mkdir "${devProxyPath}" && copy placeholder.bat "${devProxyPath}\\placeholder.bat")
+                        if not exist "${ifsfPath}" (mkdir "${ifsfPath}" && copy placeholder.bat "${ifsfPath}\\placeholder.bat")
+                        if not exist "${xmlPath}" (mkdir "${xmlPath}" && copy placeholder.bat "${xmlPath}\\placeholder.bat")
                     """
                     bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\DevProxy.7z \"${devProxyPath}\\*\""
                     bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\IFSF.7z \"${ifsfPath}\\*\""
@@ -66,7 +66,6 @@ pipeline {
         }
     }
 }
-
 
 
 

@@ -1,0 +1,51 @@
+// =============================================================================
+// Jenkins : test Robot "Download Catalog" (envoi des 3 packages IFSF vers le terminal)
+// =============================================================================
+// Ce pipeline lance le test qui envoie vers /package sur le terminal Move 3500 :
+//   - 8515360451_DEV_PROXY.P3A
+//   - 8226760630_IFSF_0630.P3A
+//   - 8226750630_XMLCFG_DLL.P3L
+//
+// Prérequis : QAtcher démarré, terminal connecté (QAtcherTerminalID).
+// Les chemins des packages sont définis dans Download_Catalog.robot.
+// =============================================================================
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'QAtcherTerminalID', defaultValue: 'Move3500_54227826', description: 'ID du terminal QAtcher')
+        string(name: 'QAtcherHost', defaultValue: 'localhost', description: 'Hôte du serveur QAtcher')
+        string(name: 'QAtcherPort', defaultValue: '8080', description: 'Port du serveur QAtcher')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Run Download Catalog Test') {
+            steps {
+                dir('tests') {
+                    bat """
+                        python -m robot ^
+                            --variable QAtcherTerminalID:${params.QAtcherTerminalID} ^
+                            --variable QAtcherHost:${params.QAtcherHost} ^
+                            --variable QAtcherPort:${params.QAtcherPort} ^
+                            --test "Download Catalog Test" ^
+                            --outputdir output_download_catalog ^
+                            --loglevel INFO ^
+                            Download_Catalog.robot
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'tests/output_download_catalog/log.html, tests/output_download_catalog/report.html, tests/output_download_catalog/output.xml', allowEmptyArchive: true
+        }
+    }
+}

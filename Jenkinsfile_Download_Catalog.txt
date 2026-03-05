@@ -21,31 +21,33 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[url: 'https://github.com/ESLEM2000/qatcher-robot-tests.git']]
+                ])
             }
         }
 
         stage('Run Download Catalog Test') {
             steps {
-                dir('tests') {
-                    bat """
-                        python -m robot ^
-                            --variable QAtcherTerminalID:${params.QAtcherTerminalID} ^
-                            --variable QAtcherHost:${params.QAtcherHost} ^
-                            --variable QAtcherPort:${params.QAtcherPort} ^
-                            --test "Download Catalog Test" ^
-                            --outputdir output_download_catalog ^
-                            --loglevel INFO ^
-                            Download_Catalog.robot
-                    """
-                }
+                bat """
+                    python -m robot ^
+                        --variable QAtcherTerminalID:${params.QAtcherTerminalID} ^
+                        --variable QAtcherHost:${params.QAtcherHost} ^
+                        --variable QAtcherPort:${params.QAtcherPort} ^
+                        --test "Download Catalog Test" ^
+                        --outputdir output_download_catalog ^
+                        --loglevel INFO ^
+                        Download_Catalog.robot
+                """
             }
         }
     }
 
     post {
         always {
-            archiveArtifacts artifacts: 'tests/output_download_catalog/log.html, tests/output_download_catalog/report.html, tests/output_download_catalog/output.xml', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'output_download_catalog/log.html, output_download_catalog/report.html, output_download_catalog/output.xml', allowEmptyArchive: true
         }
     }
 }

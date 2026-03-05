@@ -178,6 +178,33 @@
         <echo message="Artefacts IFSF téléchargés vers ${ifsf.build.dir}. Lancez les tests Robot avec IFSF_BUILD_DIR=${ifsf.build.dir}."/>
     </target>
 
+    <!-- Exécuter le test Robot Download Catalog (envoi des 3 packages DevProxy, IFSF, XMLConfigDLL vers le terminal).
+         Prérequis : QAtcher démarré, terminal connecté. Variables optionnelles : -Dqatcher.terminal.id=Move3500_54227826 -Dqatcher.host=localhost -Dqatcher.port=8080 -->
+    <property name="qatcher.terminal.id" value="Move3500_54227826"/>
+    <property name="qatcher.host" value="localhost"/>
+    <property name="qatcher.port" value="8080"/>
+    <target name="run-download-catalog" description="Lance le test Robot Download Catalog (3 packages vers /package)">
+        <mkdir dir="${basedir}/output_download_catalog"/>
+        <exec executable="python" failonerror="true" dir="${basedir}">
+            <arg value="-m"/>
+            <arg value="robot"/>
+            <arg value="--variable"/>
+            <arg value="QAtcherTerminalID:${qatcher.terminal.id}"/>
+            <arg value="--variable"/>
+            <arg value="QAtcherHost:${qatcher.host}"/>
+            <arg value="--variable"/>
+            <arg value="QAtcherPort:${qatcher.port}"/>
+            <arg value="--test"/>
+            <arg value="Download Catalog Test"/>
+            <arg value="--outputdir"/>
+            <arg value="${basedir}/output_download_catalog"/>
+            <arg value="--loglevel"/>
+            <arg value="INFO"/>
+            <arg value="Download_Catalog.robot"/>
+        </exec>
+        <echo message="Test Download Catalog OK. Rapport : ${basedir}/output_download_catalog/report.html"/>
+    </target>
+
     <!-- Nettoyage -->
     <target name="clean">
         <delete dir="dist"/>

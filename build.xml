@@ -1,102 +1,191 @@
 <project name="ReleasePackage-ITA0148-WLFA" default="all" basedir=".">
-    <!--
-      Les 3 .7z (DevProxy, IFSF, XMLConfigDLL) servent à l'upgrade IFSF sur le terminal.
-      Côté installation : télécharger le dernier build réussi depuis Jenkins (IFSF_JENKINS_URL),
-      extraire dans IFSF_BUILD_DIR, sélectionner les fichiers selon le type de terminal
-      (TETRA/T2/SELF via IFSF_TERMINAL_TYPE ou QAtcherTerminalID), préparer APPL_IFSF.MXX,
-      puis installer via Local Upgrade.
-    -->
 
-    <!-- Préparation des répertoires -->
-    <target name="init">
+    <!-- Chemin 7-Zip : par défaut "7z" (si dans PATH). Sur Jenkins Windows, passer -Dsevenzip.executable="C:\Program Files\7-Zip\7z.exe" -->
+    <property name="sevenzip.executable" value="7z"/>
+
+    <!-- Répertoires d'entrée optionnels : contenu réel (sortie IngeDev ou autre build) pour packaging vers le terminal Move 3500.
+         Ex. ant -Ddevproxy.input.dir=C:\Ingedev_Workspaces\...\DevProxy\Bin -Difsf.input.dir=... all -->
+    <property name="devproxy.input.dir" value=""/>
+    <property name="ifsf.input.dir" value=""/>
+    <property name="ifsf_lib.input.dir" value=""/>
+    <property name="xmlconfigdll.input.dir" value=""/>
+    <property name="xmlconfiglib.input.dir" value=""/>
+
+    <!-- Horodatage pour le nom des artefacts : V2026-02-10_08-42-09 -->
+    <target name="version">
+        <tstamp>
+            <format property="version.timestamp" pattern="yyyy-MM-dd_HH-mm-ss"/>
+        </tstamp>
+        <property name="version" value="V${version.timestamp}"/>
+    </target>
+
+    <!-- Préparation des répertoires (créer les dossiers uniquement ; pas de fichiers placeholder). "empty" = source vide pour copy quand pas d'input. -->
+    <target name="init" depends="version">
         <mkdir dir="dist"/>
+        <mkdir dir="empty"/>
+        <mkdir dir="src/devproxy"/>
+        <mkdir dir="src/ifsf"/>
+        <mkdir dir="src/ifsf_lib"/>
+        <mkdir dir="src/xmlconfigdll"/>
+        <mkdir dir="src/xmlconfiglib"/>
     </target>
 
-    <!--
-      Schéma IFSF : Bin/GNU_ARM_RELEASE_TETRA|T2|SELF + noms de binaires (voir IFSF_STRUCTURE.md).
-      Si src/devproxy existe et contient des fichiers, on le copie ; sinon structure placeholder.
-    -->
-    <target name="assemble-devproxy" depends="init">
-        <available file="src/devproxy" type="dir" property="devproxy.src.exists"/>
-        <mkdir dir="dist/devproxy/Bin/GNU_ARM_RELEASE_TETRA"/>
-        <mkdir dir="dist/devproxy/Bin/GNU_ARM_RELEASE_T2"/>
-        <mkdir dir="dist/devproxy/Bin/GNU_ARM_RELEASE_SELF"/>
-        <touch file="dist/devproxy/Bin/GNU_ARM_RELEASE_TETRA/8515360465_DEV_PROXY.P3A"/>
-        <touch file="dist/devproxy/Bin/GNU_ARM_RELEASE_T2/8515360465.AGN"/>
-        <touch file="dist/devproxy/Bin/GNU_ARM_RELEASE_SELF/8515361465_DEV_PROXY.P3A"/>
-        <copy todir="dist/devproxy" overwrite="true" if="devproxy.src.exists">
-            <fileset dir="src/devproxy" includes="**/*"/>
+    <!-- Vérifier quels répertoires d'entrée sont fournis -->
+    <target name="check-input-dirs" depends="init">
+        <condition property="has.devproxy.input">
+            <and>
+                <not><equals arg1="${devproxy.input.dir}" arg2=""/></not>
+                <available file="${devproxy.input.dir}" type="dir"/>
+            </and>
+        </condition>
+        <condition property="has.ifsf.input">
+            <and>
+                <not><equals arg1="${ifsf.input.dir}" arg2=""/></not>
+                <available file="${ifsf.input.dir}" type="dir"/>
+            </and>
+        </condition>
+        <condition property="has.ifsf_lib.input">
+            <and>
+                <not><equals arg1="${ifsf_lib.input.dir}" arg2=""/></not>
+                <available file="${ifsf_lib.input.dir}" type="dir"/>
+            </and>
+        </condition>
+        <condition property="has.xmlconfigdll.input">
+            <and>
+                <not><equals arg1="${xmlconfigdll.input.dir}" arg2=""/></not>
+                <available file="${xmlconfigdll.input.dir}" type="dir"/>
+            </and>
+        </condition>
+        <condition property="has.xmlconfiglib.input">
+            <and>
+                <not><equals arg1="${xmlconfiglib.input.dir}" arg2=""/></not>
+                <available file="${xmlconfiglib.input.dir}" type="dir"/>
+            </and>
+        </condition>
+    </target>
+
+    <!-- Copier le contenu réel depuis les répertoires d'entrée vers src/ (compat Ant 1.10.x : pas de "if" sur copy/antcall ; on utilise condition + propriété + répertoire "empty"). -->
+    <target name="copy-input-to-src" depends="check-input-dirs">
+        <condition property="devproxy.copy.src" value="${devproxy.input.dir}"><isset property="has.devproxy.input"/></condition>
+        <property name="devproxy.copy.src" value="empty"/>
+        <condition property="ifsf.copy.src" value="${ifsf.input.dir}"><isset property="has.ifsf.input"/></condition>
+        <property name="ifsf.copy.src" value="empty"/>
+        <condition property="ifsf_lib.copy.src" value="${ifsf_lib.input.dir}"><isset property="has.ifsf_lib.input"/></condition>
+        <property name="ifsf_lib.copy.src" value="empty"/>
+        <condition property="xmlconfigdll.copy.src" value="${xmlconfigdll.input.dir}"><isset property="has.xmlconfigdll.input"/></condition>
+        <property name="xmlconfigdll.copy.src" value="empty"/>
+        <condition property="xmlconfiglib.copy.src" value="${xmlconfiglib.input.dir}"><isset property="has.xmlconfiglib.input"/></condition>
+        <property name="xmlconfiglib.copy.src" value="empty"/>
+        <copy todir="src/devproxy" includeEmptyDirs="true" verbose="true">
+            <fileset dir="${devproxy.copy.src}"/>
         </copy>
-        <echo message="Vérification DevProxy..."/>
-        <fail message="DevProxy : fichier TETRA manquant !" unless="dist/devproxy/Bin/GNU_ARM_RELEASE_TETRA/8515360465_DEV_PROXY.P3A"/>
-    </target>
-
-    <target name="assemble-ifsf" depends="init">
-        <available file="src/ifsf" type="dir" property="ifsf.src.exists"/>
-        <mkdir dir="dist/ifsf/Bin/GNU_ARM_RELEASE_TETRA"/>
-        <mkdir dir="dist/ifsf/Bin/GNU_ARM_RELEASE_T2"/>
-        <mkdir dir="dist/ifsf/Bin/GNU_ARM_RELEASE_SELF"/>
-        <touch file="dist/ifsf/Bin/GNU_ARM_RELEASE_TETRA/8226760662_IFSF_0662.P3A"/>
-        <touch file="dist/ifsf/Bin/GNU_ARM_RELEASE_T2/8226760662.AGN"/>
-        <touch file="dist/ifsf/Bin/GNU_ARM_RELEASE_SELF/8226761662_IFSF_1662.P3A"/>
-        <copy todir="dist/ifsf" overwrite="true" if="ifsf.src.exists">
-            <fileset dir="src/ifsf" includes="**/*"/>
+        <copy todir="src/ifsf" includeEmptyDirs="true" verbose="true">
+            <fileset dir="${ifsf.copy.src}"/>
         </copy>
-        <echo message="Vérification IFSF..."/>
-        <fail message="IFSF : fichier TETRA manquant !" unless="dist/ifsf/Bin/GNU_ARM_RELEASE_TETRA/8226760662_IFSF_0662.P3A"/>
-    </target>
-
-    <target name="assemble-xmlconfigdll" depends="init">
-        <available file="src/xmlconfigdll" type="dir" property="xmlconfigdll.src.exists"/>
-        <mkdir dir="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_TETRA"/>
-        <mkdir dir="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_T2"/>
-        <mkdir dir="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_SELF"/>
-        <touch file="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_TETRA/8226750662_XMLCFG_DLL.P3L"/>
-        <touch file="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_T2/8226750662.LGN"/>
-        <touch file="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_SELF/8226751662_XMLCFG_DLL.P3L"/>
-        <copy todir="dist/xmlconfigdll" overwrite="true" if="xmlconfigdll.src.exists">
-            <fileset dir="src/xmlconfigdll" includes="**/*"/>
+        <copy todir="src/ifsf_lib" includeEmptyDirs="true" verbose="true">
+            <fileset dir="${ifsf_lib.copy.src}"/>
         </copy>
-        <echo message="Vérification XMLConfigDLL..."/>
-        <fail message="XMLConfigDLL : fichier TETRA manquant !" unless="dist/xmlconfigdll/Bin/GNU_ARM_RELEASE_TETRA/8226750662_XMLCFG_DLL.P3L"/>
+        <copy todir="src/xmlconfigdll" includeEmptyDirs="true" verbose="true">
+            <fileset dir="${xmlconfigdll.copy.src}"/>
+        </copy>
+        <copy todir="src/xmlconfiglib" includeEmptyDirs="true" verbose="true">
+            <fileset dir="${xmlconfiglib.copy.src}"/>
+        </copy>
     </target>
 
-    <!-- Packaging DevProxy -->
+    <!-- Assemblage : src/ vers dist/ (contenu déjà dans src/ ou copié par copy-input-to-src) -->
+    <target name="assemble-devproxy" depends="copy-input-to-src">
+        <copy todir="dist/devproxy" includeEmptyDirs="true">
+            <fileset dir="src/devproxy"/>
+        </copy>
+    </target>
+    <target name="assemble-ifsf" depends="copy-input-to-src">
+        <copy todir="dist/ifsf" includeEmptyDirs="true">
+            <fileset dir="src/ifsf"/>
+        </copy>
+    </target>
+    <target name="assemble-ifsf_lib" depends="copy-input-to-src">
+        <copy todir="dist/ifsf_lib" includeEmptyDirs="true">
+            <fileset dir="src/ifsf_lib"/>
+        </copy>
+    </target>
+    <target name="assemble-xmlconfigdll" depends="copy-input-to-src">
+        <copy todir="dist/xmlconfigdll" includeEmptyDirs="true">
+            <fileset dir="src/xmlconfigdll"/>
+        </copy>
+    </target>
+    <target name="assemble-xmlconfiglib" depends="copy-input-to-src">
+        <copy todir="dist/xmlconfiglib" includeEmptyDirs="true">
+            <fileset dir="src/xmlconfiglib"/>
+        </copy>
+    </target>
+
+    <!-- Packaging : nommage DevProxy_V2026-02-10_08-42-09_Binaries.7z -->
     <target name="package-devproxy" depends="assemble-devproxy">
-        <exec executable="7z">
+        <exec executable="${sevenzip.executable}" failonerror="true">
             <arg value="a"/>
-            <arg value="dist/DevProxy.7z"/>
+            <arg value="dist/DevProxy_${version}_Binaries.7z"/>
             <arg value="dist/devproxy/*"/>
         </exec>
     </target>
-
-    <!-- Packaging IFSF -->
     <target name="package-ifsf" depends="assemble-ifsf">
-        <exec executable="7z">
+        <exec executable="${sevenzip.executable}" failonerror="true">
             <arg value="a"/>
-            <arg value="dist/IFSF.7z"/>
+            <arg value="dist/IFSF_${version}_Binaries.7z"/>
             <arg value="dist/ifsf/*"/>
         </exec>
     </target>
-
-    <!-- Packaging XMLConfigDLL -->
-    <target name="package-xmlconfigdll" depends="assemble-xmlconfigdll">
-        <exec executable="7z">
+    <target name="package-ifsf_lib" depends="assemble-ifsf_lib">
+        <exec executable="${sevenzip.executable}" failonerror="true">
             <arg value="a"/>
-            <arg value="dist/XMLConfigDLL.7z"/>
+            <arg value="dist/IFSF_Lib_${version}_Binaries.7z"/>
+            <arg value="dist/ifsf_lib/*"/>
+        </exec>
+    </target>
+    <target name="package-xmlconfigdll" depends="assemble-xmlconfigdll">
+        <exec executable="${sevenzip.executable}" failonerror="true">
+            <arg value="a"/>
+            <arg value="dist/XMLConfigDLL_${version}_Binaries.7z"/>
             <arg value="dist/xmlconfigdll/*"/>
         </exec>
     </target>
+    <target name="package-xmlconfiglib" depends="assemble-xmlconfiglib">
+        <exec executable="${sevenzip.executable}" failonerror="true">
+            <arg value="a"/>
+            <arg value="dist/XMLConfigLib_${version}_Binaries.7z"/>
+            <arg value="dist/xmlconfiglib/*"/>
+        </exec>
+    </target>
 
-    <!-- Cible globale -->
-    <target name="all" depends="package-devproxy,package-ifsf,package-xmlconfigdll"/>
+    <!-- Cible globale : 5 artefacts comme sur le build #316 -->
+    <target name="all" depends="package-devproxy,package-ifsf_lib,package-ifsf,package-xmlconfigdll,package-xmlconfiglib"/>
+
+    <!-- Télécharger les vrais artefacts IFSF depuis Jenkins vers IFSF_Build (pour tests Robot Install IFSF).
+         Prérequis : IFSF_JENKINS_URL (et JENKINS_USER/JENKINS_PASSWORD si auth). Script dans le même dossier que build.xml ou -Difsf.scripts.dir=chemin. -->
+    <property name="ifsf.scripts.dir" value="${basedir}"/>
+    <property name="ifsf.build.dir" value="${basedir}/IFSF_Build"/>
+    <target name="download-ifsf" description="Télécharge les vrais artefacts IFSF depuis Jenkins (download_ifsf_from_jenkins.ps1)">
+        <exec executable="powershell" failonerror="true" dir="${ifsf.scripts.dir}">
+            <arg value="-NoProfile"/>
+            <arg value="-ExecutionPolicy"/>
+            <arg value="Bypass"/>
+            <arg value="-File"/>
+            <arg value="${ifsf.scripts.dir}/download_ifsf_from_jenkins.ps1"/>
+            <arg value="-OutputDir"/>
+            <arg value="${ifsf.build.dir}"/>
+            <env key="IFSF_BUILD_DIR" value="${ifsf.build.dir}"/>
+        </exec>
+        <echo message="Artefacts IFSF téléchargés vers ${ifsf.build.dir}. Lancez les tests Robot avec IFSF_BUILD_DIR=${ifsf.build.dir}."/>
+    </target>
 
     <!-- Nettoyage -->
     <target name="clean">
         <delete dir="dist"/>
+        <delete dir="empty" quiet="true"/>
     </target>
 
 </project>
+
 
 
 

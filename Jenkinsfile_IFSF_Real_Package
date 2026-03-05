@@ -1,0 +1,116 @@
+// =============================================================================
+// Jenkins : packaging des VRAIS artefacts IFSF (structure Bin/GNU_ARM_RELEASE_*)
+// =============================================================================
+// Ce job crée les 3 .7z (DevProxy, IFSF, XMLConfigDLL) à partir de sorties de
+// compilation réelles. Les placeholders (0 octet) ne sont plus publiés.
+//
+// Trois modes (obligatoire d'en choisir un) :
+// 1) UPSTREAM_JOB : copier les artefacts d'un job Jenkins qui publie les vrais binaires.
+// 2) REAL_ARTEFACTS_SOURCE_DIR : chemin local vers sortie IngeDev (ex. C:\...\Ingedev_8.22.0.6).
+// 3) Workspace : le workspace contient déjà DevProxy, IFSF, XMLConfigDLL (build en amont).
+//
+// Une étape de vérification refuse de publier si les binaires clés font 0 octet.
+// =============================================================================
+pipeline {
+    agent any
+    parameters {
+        string(name: 'GIT_REPO_URL', defaultValue: 'https://github.com/ESLEM2000/qatcher-robot-tests.git', description: 'URL du dépôt Git')
+        string(name: 'GIT_BRANCH', defaultValue: 'main', description: 'Branche Git à cloner')
+        string(name: 'DEVPROXY_DIR', defaultValue: 'DevProxy', description: 'Dossier contenant Bin/GNU_ARM_RELEASE_* pour DevProxy')
+        string(name: 'IFSF_DIR', defaultValue: 'IFSF', description: 'Dossier contenant Bin/ pour IFSF')
+        string(name: 'XMLCONFIGDLL_DIR', defaultValue: 'XMLConfigDLL', description: 'Dossier contenant Bin/ et HOST/ pour XMLConfigDLL')
+        string(name: 'UPSTREAM_JOB', defaultValue: '', description: 'Job Jenkins dont copier les artefacts (vrais binaires uniquement)')
+        string(name: 'REAL_ARTEFACTS_SOURCE_DIR', defaultValue: '', description: 'Chemin local vers sortie IngeDev (ex. C:\\...\\Ingedev_8.22.0.6). Prioritaire si UPSTREAM_JOB vide.')
+    }
+    stages {
+        stage('Checkout Git') {
+            steps {
+                git branch: "${params.GIT_BRANCH}", url: "${params.GIT_REPO_URL}"
+            }
+        }
+        stage('Préparer sources (Copy Artifacts)') {
+            when { expression { return params.UPSTREAM_JOB?.trim() } }
+            steps {
+                copyArtifacts(
+                    projectName: "${params.UPSTREAM_JOB}",
+                    selector: lastSuccessful(),
+                    filter: '**/*',
+                    optional: false
+                )
+            }
+        }
+        stage('Préparer sources (répertoire local)') {
+            when { expression { return params.REAL_ARTEFACTS_SOURCE_DIR?.trim() && !params.UPSTREAM_JOB?.trim() } }
+            steps {
+                script {
+                    def src = params.REAL_ARTEFACTS_SOURCE_DIR.trim().replace('/', '\\')
+                    def ws = env.WORKSPACE.replace('/', '\\')
+                    powershell """
+                        \$ErrorActionPreference = 'Stop'
+                        \$src = '${src}'
+                        \$ws = '${ws}'
+                        foreach (\$d in @('DevProxy','IFSF','XMLConfigDLL')) {
+                            \$from = Join-Path \$src \$d
+                            \$to   = Join-Path \$ws \$d
+                            if (Test-Path \$from) {
+                                if (Test-Path \$to) { Remove-Item -Path \$to -Recurse -Force }
+                                Copy-Item -Path \$from -Destination \$to -Recurse -Force
+                                Write-Host "Copié: \$from -> \$to"
+                            } else { Write-Warning "Absent: \$from" }
+                        }
+                    """
+                }
+            }
+        }
+        stage('Vérifier sources réelles') {
+            steps {
+                script {
+                    def devProxyPath = params.DEVPROXY_DIR.trim()
+                    def ifsfPath = params.IFSF_DIR.trim()
+                    def xmlPath = params.XMLCONFIGDLL_DIR.trim()
+                    def minSize = 100
+                    powershell """
+                        \$ErrorActionPreference = 'Stop'
+                        \$minSize = ${minSize}
+                        \$keyFiles = @(
+                            (Join-Path '${devProxyPath}' 'Bin\\GNU_ARM_RELEASE_TETRA\\8515360465_DEV_PROXY.P3A'),
+                            (Join-Path '${ifsfPath}' 'Bin\\GNU_ARM_RELEASE_TETRA\\8226760662_IFSF_0662.P3A'),
+                            (Join-Path '${xmlPath}' 'Bin\\GNU_ARM_RELEASE_TETRA\\8226750662_XMLCFG_DLL.P3L')
+                        )
+                        \$allOk = \$true
+                        foreach (\$f in \$keyFiles) {
+                            if (-not (Test-Path \$f)) { Write-Host "MANQUANT: \$f"; \$allOk = \$false }
+                            else {
+                                \$len = (Get-Item \$f).Length
+                                if (\$len -lt \$minSize) { Write-Host "PLACEHOLDER (${minSize} octets min): \$f (\$len octets)"; \$allOk = \$false }
+                                else { Write-Host "OK: \$f (\$len octets)" }
+                            }
+                        }
+                        if (-not \$allOk) {
+                            Write-Error "Les binaires IFSF sont absents ou vides (placeholders). Définir UPSTREAM_JOB (job avec vrais artefacts) ou REAL_ARTEFACTS_SOURCE_DIR (chemin vers sortie IngeDev). Ne pas publier de placeholders."
+                            exit 1
+                        }
+                    """
+                }
+            }
+        }
+        stage('Créer les .7z') {
+            steps {
+                script {
+                    bat 'if not exist dist mkdir dist'
+                    def devProxyPath = params.DEVPROXY_DIR.trim()
+                    def ifsfPath = params.IFSF_DIR.trim()
+                    def xmlPath = params.XMLCONFIGDLL_DIR.trim()
+                    bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\DevProxy.7z \"${devProxyPath}\\*\""
+                    bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\IFSF.7z \"${ifsfPath}\\*\""
+                    bat "\"C:\\Program Files\\7-Zip\\7z.exe\" a dist\\XMLConfigDLL.7z \"${xmlPath}\\*\""
+                }
+            }
+        }
+    }
+    post {
+        success {
+            archiveArtifacts artifacts: 'dist/DevProxy.7z, dist/IFSF.7z, dist/XMLConfigDLL.7z', fingerprint: true
+        }
+    }
+}

@@ -1,0 +1,80 @@
+// Pipeline pour qatcher-robot-tests (IFSF / WLFuelApp - Robot Framework)
+// Repo: https://github.com/ESLEM2000/qatcher-robot-tests
+// Jenkins: configurer "Pipeline from SCM" → Git → cette URL, script path: Jenkinsfile
+
+pipeline {
+    agent any
+
+    parameters {
+        choice(
+            name: 'TERMINAL_TYPE',
+            choices: ['MOVE_ATTENDED', 'SELF_UNATTENDED'],
+            description: 'Type de terminal cible (Move = dev, Self = tests courts)'
+        )
+        string(
+            name: 'PROJECT_COUNTRY',
+            defaultValue: 'ITALY',
+            description: 'Contexte projet (ex: ITALY)'
+        )
+        string(
+            name: 'IFSF_ROOT',
+            defaultValue: 'C:\\to eslem\\IFSF_20260210_X662_signed (3)',
+            description: 'Racine du package IFSF (dossier local partagé)'
+        )
+        string(
+            name: 'ROBOT_TAG',
+            defaultValue: 'SMOKE',
+            description: 'Tag Robot à exécuter (SMOKE, ITALY, EMV, etc.) ou vide = tous'
+        )
+    }
+
+    stages {
+        stage('Préparation IFSF') {
+            steps {
+                script {
+                    def ifsfApp = "${params.IFSF_ROOT}\\IFSF_20260210_X662_signed\\IFSF_20260210_X662\\IFSF APP"
+                    echo "Vérification du package IFSF: ${ifsfApp}"
+                    // Vérifier que le dossier existe (agent Windows)
+                    bat "if exist \"${ifsfApp}\" (echo IFSF package OK) else (echo ERREUR: IFSF non trouvé && exit /b 1)"
+                }
+            }
+        }
+
+        stage('Catalogue / Upgrade (optionnel)') {
+            when { expression { return false } }  // désactivé par défaut; mettre true pour exécuter
+            steps {
+                echo "Ici: script d'upgrade terminal basé sur ifsf_catalogue.yaml"
+                // bat 'python scripts/upgrade_from_catalogue.py --terminal ${params.TERMINAL_TYPE}'
+            }
+        }
+
+        stage('Tests Robot') {
+            steps {
+                dir('robot') {
+                    script {
+                        def tagArg = params.ROBOT_TAG?.trim() ? " --include ${params.ROBOT_TAG}" : ''
+                        bat "pip install robotframework --quiet"
+                        bat "robot -d results -v TERMINAL_TYPE:${params.TERMINAL_TYPE} -v PROJECT_COUNTRY:${params.PROJECT_COUNTRY}${tagArg} tests\\italy_smoke_tests.robot"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'robot/results',
+                reportFiles: 'report.html',
+                reportName: 'Robot Framework Report',
+                reportTitles: ''
+            ])
+        }
+        failure {
+            echo 'Pipeline ou tests en échec.'
+        }
+    }
+}
